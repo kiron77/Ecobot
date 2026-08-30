@@ -1,0 +1,539 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: EcoBot Platform API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: sensors
+    description: IoT sensor data from Pico W
+  - name: projects
+    description: Student coding projects
+  - name: tutor
+    description: AI design tutor conversations
+  - name: modules
+    description: EcoBot hardware module registry
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # ─── Sensors ────────────────────────────────────────────────────────────────
+  /sensors:
+    get:
+      operationId: listSensorReadings
+      tags: [sensors]
+      summary: Get latest sensor readings from all modules
+      responses:
+        "200":
+          description: List of sensor readings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SensorReading"
+
+  /sensors/summary:
+    get:
+      operationId: getSensorSummary
+      tags: [sensors]
+      summary: Get sensor summary stats (avg, min, max per module type)
+      responses:
+        "200":
+          description: Sensor summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SensorSummary"
+
+  /sensors/history:
+    get:
+      operationId: getSensorHistory
+      tags: [sensors]
+      summary: Get historical sensor data for charting
+      parameters:
+        - name: moduleType
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Historical readings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SensorReading"
+
+  /sensors/modules:
+    get:
+      operationId: listConnectedModules
+      tags: [sensors]
+      summary: List all connected hardware modules
+      responses:
+        "200":
+          description: Connected modules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HardwareModule"
+
+  # ─── Projects ────────────────────────────────────────────────────────────────
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List all student projects
+      responses:
+        "200":
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create a new project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectBody"
+      responses:
+        "201":
+          description: Created project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
+  /projects/{id}:
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Get a project by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+    put:
+      operationId: updateProject
+      tags: [projects]
+      summary: Update a project (save code changes)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProjectBody"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Delete a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /projects/recent:
+    get:
+      operationId: getRecentProjects
+      tags: [projects]
+      summary: Get recently modified projects
+      responses:
+        "200":
+          description: Recent projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+
+  # ─── Tutor ────────────────────────────────────────────────────────────────
+  /tutor/conversations:
+    get:
+      operationId: listTutorConversations
+      tags: [tutor]
+      summary: List all tutor conversations
+      responses:
+        "200":
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TutorConversation"
+    post:
+      operationId: createTutorConversation
+      tags: [tutor]
+      summary: Start a new tutor conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTutorConversationBody"
+      responses:
+        "201":
+          description: Created conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutorConversation"
+
+  /tutor/conversations/{id}:
+    get:
+      operationId: getTutorConversation
+      tags: [tutor]
+      summary: Get conversation with messages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Conversation with messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutorConversationWithMessages"
+
+  /tutor/conversations/{id}/messages:
+    post:
+      operationId: sendTutorMessage
+      tags: [tutor]
+      summary: Send message to AI tutor (SSE streaming)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendTutorMessageBody"
+      responses:
+        "200":
+          description: Streaming SSE response
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  # ─── Modules ────────────────────────────────────────────────────────────────
+  /modules:
+    get:
+      operationId: listModuleTypes
+      tags: [modules]
+      summary: List all supported EcoBot module types with descriptions
+      responses:
+        "200":
+          description: Module types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ModuleType"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+
+    SensorReading:
+      type: object
+      properties:
+        id:
+          type: integer
+        moduleType:
+          type: string
+        sensorName:
+          type: string
+        value:
+          type: number
+        unit:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        deviceId:
+          type: string
+      required: [id, moduleType, sensorName, value, unit, timestamp, deviceId]
+
+    SensorSummary:
+      type: object
+      properties:
+        totalReadings:
+          type: integer
+        activeModules:
+          type: integer
+        byModule:
+          type: array
+          items:
+            type: object
+            properties:
+              moduleType:
+                type: string
+              avg:
+                type: number
+              min:
+                type: number
+              max:
+                type: number
+              unit:
+                type: string
+              readingCount:
+                type: integer
+            required: [moduleType, avg, min, max, unit, readingCount]
+      required: [totalReadings, activeModules, byModule]
+
+    HardwareModule:
+      type: object
+      properties:
+        id:
+          type: integer
+        moduleType:
+          type: string
+        displayName:
+          type: string
+        isConnected:
+          type: boolean
+        lastSeen:
+          type: string
+          format: date-time
+        pinConfig:
+          type: string
+      required: [id, moduleType, displayName, isConnected, lastSeen, pinConfig]
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        code:
+          type: string
+        language:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        workflowStage:
+          type: string
+          description: Current EcoBot workflow stage (idea, hardware, software, chassis, prototype, debug, product)
+        tags:
+          type: array
+          items:
+            type: string
+      required: [id, name, description, code, language, createdAt, updatedAt, workflowStage, tags]
+
+    CreateProjectBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        language:
+          type: string
+          enum: [micropython, blocks]
+        workflowStage:
+          type: string
+          enum: [idea, hardware, software, chassis, prototype, debug, product]
+        tags:
+          type: array
+          items:
+            type: string
+      required: [name, description, language]
+
+    UpdateProjectBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        code:
+          type: string
+        workflowStage:
+          type: string
+          enum: [idea, hardware, software, chassis, prototype, debug, product]
+        tags:
+          type: array
+          items:
+            type: string
+
+    TutorConversation:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        projectId:
+          type: integer
+          nullable: true
+        workflowStage:
+          type: string
+          description: The EcoBot workflow stage this conversation is focused on
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        messageCount:
+          type: integer
+      required: [id, title, workflowStage, createdAt, updatedAt, messageCount]
+
+    TutorConversationWithMessages:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        projectId:
+          type: integer
+          nullable: true
+        workflowStage:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/TutorMessage"
+      required: [id, title, workflowStage, createdAt, messages]
+
+    TutorMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, conversationId, role, content, createdAt]
+
+    SendTutorMessageBody:
+      type: object
+      properties:
+        content:
+          type: string
+        workflowStage:
+          type: string
+          enum: [idea, hardware, software, chassis, prototype, debug, product]
+      required: [content]
+
+    CreateTutorConversationBody:
+      type: object
+      properties:
+        title:
+          type: string
+        projectId:
+          type: integer
+        workflowStage:
+          type: string
+          enum: [idea, hardware, software, chassis, prototype, debug, product]
+      required: [title, workflowStage]
+
+    ModuleType:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+        sensors:
+          type: array
+          items:
+            type: string
+        icon:
+          type: string
+      required: [id, displayName, description, sensors, icon]
