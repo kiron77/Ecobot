@@ -1,0 +1,96 @@
+# ecobot_os.py -- EcoBotOS v0.1
+#
+# Usage:
+#   from ecobot_os import EcoBotOS
+#   bot = EcoBotOS()
+#   bot.m1.spin(50)          # motor 1, half speed forward
+#   bot.m2.spin(-50)         # motor 2, half speed backward
+#   distance = bot.s1.read() # returns an int by default
+#   close = bot.s1.read(bool)
+#   text = bot.s1.read(str)
+
+from machine import Pin, PWM, I2C
+
+# Each sensor MODULE TYPE has one fixed I2C address, baked into its own
+# STM32 firmware. Since all 8 physical ports share a single I2C bus, "s1"
+# means "the first known sensor type," NOT "the module plugged into port 1" --
+# there's no way for the Pico to tell which physical port a signal came from,
+# only which address responded. Plug a module into any open port and it works.
+KNOWN_ADDRESSES = {
+    "ultrasonic": 0x08,   # <-- lock this in for real once STM32 firmware is written
+    # future module types get their own address added here
+}
+
+
+class Sensor:
+    def __init__(self, i2c, address):
+        self.i2c = i2c
+        self.address = address
+
+    def _raw(self):
+        """Reads 2 raw bytes (big-endian) from the sensor's I2C address.
+        Returns None if nothing responds -- module not plugged in / not flashed."""
+        try:
+            data = self.i2c.readfrom(self.address, 2)
+            return (data[0] << 8) | data[1]
+        except OSError:
+            print(f"No device found on I2C address {hex(self.address)}")
+            return None
+
+    def read(self, as_type=int):
+        value = self._raw()
+        if value is None:
+            return None
+        if as_type is int:
+            return value                     # e.g. distance in mm
+        if as_type is bool:
+            return value < 200                # "True" = something's close (<200mm)
+        if as_type is str:
+            return f"{value}mm"
+        raise ValueError(f"Unsupported read type: {as_type}")
+
+
+class Motor:
+    def __init__(self, enable_pin, dir_pin1, dir_pin2):
+        self.pwm = PWM(Pin(enable_pin))
+        self.pwm.freq(1000)
+        self.in1 = Pin(dir_pin1, Pin.OUT)
+        self.in2 = Pin(dir_pin2, Pin.OUT)
+        self.spin(0)
+
+    def spin(self, speed=0):
+        """speed: -100 (full reverse) to 100 (full forward), 0 = stop"""
+        speed = max(-100, min(100, speed))
+        duty = int(abs(speed) / 100 * 65535)
+        if speed > 0:
+            self.in1.value(1); self.in2.value(0)
+        elif speed < 0:
+            self.in1.value(0); self.in2.value(1)
+        else:
+            self.in1.value(0); self.in2.value(0)
+        self.pwm.duty_u16(duty)
+
+
+class EcoBotOS:
+    def __init__(self):
+        self.i2c = I2C(0, sda=Pin(4), scl=Pin(5), freq=100000)
+
+        # --- Motors ---
+        # m1/m2 are real, wired to the ordered motor driver board (8-pin header).
+        self.m1 = Motor(enable_pin=6, dir_pin1=7, dir_pin2=8)   # driver's Motor A
+        self.m2 = Motor(enable_pin=11, dir_pin1=9, dir_pin2=10) # driver's Motor B
+        # m3/m4 are real -- wired to the second motor driver board (PCBA's 2-board minimum).
+        self.m3 = Motor(enable_pin=12, dir_pin1=13, dir_pin2=14) # driver 2's Motor A
+        self.m4 = Motor(enable_pin=17, dir_pin1=15, dir_pin2=16) # driver 2's Motor B
+
+        # --- Sensors ---
+        # s1 is real -- bound to the ultrasonic module's known address.
+        self.s1 = Sensor(self.i2c, KNOWN_ADDRESSES["ultrasonic"])
+        # s2-s8 reserved for future module types, once each has its own address.
+        self.s2 = None
+        self.s3 = None
+        self.s4 = None
+        self.s5 = None
+        self.s6 = None
+        self.s7 = None
+        self.s8 = None
