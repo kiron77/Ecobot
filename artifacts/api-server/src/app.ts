@@ -1,4 +1,5 @@
 import express, { type Express } from "express";
+import path from "node:path";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import { clerkMiddleware } from "@clerk/express";
@@ -72,5 +73,22 @@ app.use(
 app.use(devAuthMiddleware());
 
 app.use("/api", router);
+
+// --- Serve the built frontend (single-service deploy) ---
+// In production the React app is built to artifacts/ecobot/dist/public. We serve
+// those static files, and fall back to index.html for client-side routing so
+// deep links (e.g. /lessons) work on refresh. API routes above take priority.
+if (process.env.NODE_ENV === "production") {
+  const clientDir = path.resolve(
+    import.meta.dirname,
+    "../../ecobot/dist/public",
+  );
+  app.use(express.static(clientDir));
+  app.get("/*splat", (req, res, next) => {
+    // don't hijack API or websocket paths
+    if (req.path.startsWith("/api") || req.path.startsWith("/ws")) return next();
+    res.sendFile(path.join(clientDir, "index.html"));
+  });
+}
 
 export default app;
