@@ -2,9 +2,9 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { GridTerrain } from "@/components/grid-terrain";
-import { SignalBars } from "@/components/signal-bars";
+import { CodeTerminal } from "@/components/code-terminal";
 import { SpeedDial } from "@/components/speed-dial";
-import { Telemetry } from "@/components/telemetry";
+import { PingRadar } from "@/components/ping-radar";
 import { CursorSprocket, BouncingBars, Waveform } from "@/components/sprocket";
 import {
   ArrowRight, ChevronLeft, ChevronRight, Terminal,
@@ -257,9 +257,9 @@ export default function Landing() {
         <div className="pointer-events-none absolute -left-10 top-32 text-primary/20"><Gear size={150} dir="cw" /></div>
         <div className="pointer-events-none absolute right-8 top-52 text-primary/15 hidden sm:block"><Gear size={90} dir="ccw" /></div>
 
-        {/* decorative live signal bars, bottom-left over the terrain */}
-        <div className="pointer-events-none absolute bottom-24 left-4 z-10 hidden w-44 sm:block md:left-8">
-          <SignalBars />
+        {/* ecobotOS code typing terminal, bottom-left over the terrain */}
+        <div className="absolute bottom-24 left-4 z-10 hidden w-64 sm:block md:left-8">
+          <CodeTerminal />
         </div>
 
         {/* speed dial in the centre of the path */}
@@ -267,9 +267,9 @@ export default function Landing() {
           <SpeedDial speedRef={speedRef} />
         </div>
 
-        {/* flickering telemetry, bottom-right over the terrain */}
-        <div className="pointer-events-none absolute bottom-24 right-4 z-10 hidden w-40 sm:block md:right-8">
-          <Telemetry />
+        {/* wifi ping radar, bottom-right over the terrain */}
+        <div className="absolute bottom-24 right-4 z-10 hidden w-36 sm:block md:right-8">
+          <PingRadar />
         </div>
 
         {/* nav */}
@@ -290,8 +290,9 @@ export default function Landing() {
           <div className="fade-scroll in mb-6 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-3 py-1 font-mono text-xs text-primary">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" /> Raspberry Pi Pico W · modular robotics
           </div>
-          <h1 className="fade-scroll in font-display text-6xl font-bold leading-[0.98] sm:text-7xl md:text-8xl" style={{ textWrap: "balance" }}>
-            <span className="grad-type">Build something</span><br />
+          <h1 className="fade-scroll in font-display text-[2.75rem] font-bold leading-[1.02] sm:text-7xl sm:leading-[0.98] md:text-8xl" style={{ textWrap: "balance" }}>
+            <span className="grad-type">Build something</span>
+            <br className="hidden sm:block" />{" "}
             <span className="text-primary text-glow">that moves.</span>
           </h1>
           <p className="fade-scroll in mt-6 max-w-xl text-lg text-muted-foreground sm:text-xl">
@@ -336,7 +337,7 @@ export default function Landing() {
             </div>
           </div>
           {/* tilted terminal, bleeds slightly off the right edge */}
-          <div className="fade-scroll relative -mr-8 md:-mr-20">
+          <div className="fade-scroll relative md:-mr-20">
             <div className="tilt-window-r">
               <LiveTerminal />
             </div>
