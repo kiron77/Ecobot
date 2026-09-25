@@ -108,6 +108,28 @@ function WorkflowProgress({
   );
 }
 
+type SprocketMood = "idle" | "thinking" | "success" | "error";
+
+const SPROCKET_FACES: Record<SprocketMood, string> = {
+  idle: "/sprocket/idle.png",
+  thinking: "/sprocket/thinking.png",
+  success: "/sprocket/success.png",
+  error: "/sprocket/error.png",
+};
+
+function SprocketAvatar({ mood, size = 28 }: { mood: SprocketMood; size?: number }) {
+  return (
+    <img
+      src={SPROCKET_FACES[mood]}
+      alt={`Sprocket (${mood})`}
+      width={size}
+      height={size}
+      className="object-contain transition-opacity duration-200"
+      style={{ width: size, height: size }}
+    />
+  );
+}
+
 export default function Tutor() {
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([
@@ -118,6 +140,7 @@ export default function Tutor() {
   ]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [sprocketMood, setSprocketMood] = useState<SprocketMood>("idle");
   const [stage, setStage] = useState("idea");
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [isCreatingConversation, setIsCreatingConversation] = useState(false);
@@ -193,6 +216,7 @@ export default function Tutor() {
 
     setMessages((prev) => [...prev, { role: "user", content: text }]);
     setIsStreaming(true);
+    setSprocketMood("thinking");
     streamedContentRef.current = "";
     setStageHint(null);
     setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
@@ -247,8 +271,10 @@ export default function Tutor() {
           } catch { /* ignore */ }
         }
       }
+      setSprocketMood("success");
     } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") return;
+      if (err instanceof Error && err.name === "AbortError") { setSprocketMood("idle"); return; }
+      setSprocketMood("error");
       setMessages((prev) => {
         const updated = [...prev];
         updated[updated.length - 1] = {
@@ -260,6 +286,8 @@ export default function Tutor() {
     } finally {
       setIsStreaming(false);
       abortRef.current = null;
+      // ease back to idle after showing success/error briefly
+      setTimeout(() => setSprocketMood("idle"), 2600);
     }
   };
 
@@ -425,6 +453,10 @@ export default function Tutor() {
       <Card className="flex-1 flex flex-col overflow-hidden shadow-md border-2" style={{ minHeight: 0 }}>
         {/* Workflow progress bar */}
         <div className="px-3 md:px-4 py-2.5 border-b bg-muted/30 flex items-center gap-2 flex-wrap">
+          {/* Reacting Sprocket — shows live mood */}
+          <div className="hidden sm:flex items-center justify-center w-9 h-9 rounded-full bg-primary/10 ring-1 ring-primary/30 shrink-0">
+            <SprocketAvatar mood={sprocketMood} size={26} />
+          </div>
           {/* Mobile: sessions drawer button */}
           <Button
             variant="outline"
@@ -508,7 +540,7 @@ export default function Tutor() {
                 >
                   {msg.role === "user"
                     ? <User className="w-4 h-4" />
-                    : <img src="/sprocket-face.png" alt="Sprocket" className="w-7 h-7 object-contain" style={{ imageRendering: "pixelated" }} />}
+                    : <SprocketAvatar mood={(isStreaming && i === messages.length - 1) ? sprocketMood : "idle"} size={28} />}
                 </div>
                 <div
                   className={`rounded-2xl px-4 py-2.5 max-w-[82%] ${
