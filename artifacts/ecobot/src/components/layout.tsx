@@ -10,6 +10,8 @@ import {
   Cpu,
   GraduationCap,
   Settings as SettingsIcon,
+  Wrench,
+  Crown,
   LogOut,
   Home,
   ShoppingCart,
