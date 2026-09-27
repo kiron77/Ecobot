@@ -207,14 +207,17 @@ export default function CodeEditorPage() {
     // Warnings/tips → squiggle markers. (Errors get a full-line highlight below,
     // so we only squiggle non-errors to avoid doubling up.)
     const markers = issues
-      .filter((i) => i.line != null && i.type !== "error")
+      .filter((i) => i.line != null)
       .map((i) => ({
         startLineNumber: i.line as number,
         endLineNumber: i.line as number,
         startColumn: 1,
         endColumn: model.getLineMaxColumn(i.line as number),
         message: i.message + (i.fix ? `\n\nFix: ${i.fix}` : ""),
-        severity: i.type === "warning" ? monaco.MarkerSeverity.Warning : monaco.MarkerSeverity.Info,
+        severity:
+          i.type === "error" ? monaco.MarkerSeverity.Error
+          : i.type === "warning" ? monaco.MarkerSeverity.Warning
+          : monaco.MarkerSeverity.Info,
       }));
     monaco.editor.setModelMarkers(model, "ecobot", markers);
 
@@ -266,16 +269,16 @@ export default function CodeEditorPage() {
         border-left: 2px solid rgba(239, 68, 68, 0.9);
       }
       .ecobot-star-glyph {
-        background: transparent;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2314e07a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z'/></svg>");
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: 14px 14px;
+        cursor: pointer;
+        animation: ecobot-star-pulse 1.6s ease-in-out infinite;
       }
-      .ecobot-star-glyph::before {
-        content: "\\2605";
-        color: #f5c518;
-        font-size: 13px;
-        display: block;
-        text-align: center;
-        line-height: 18px;
-        filter: drop-shadow(0 0 3px rgba(245,197,24,0.7));
+      @keyframes ecobot-star-pulse {
+        0%, 100% { filter: drop-shadow(0 0 1px rgba(20,224,122,0.5)); opacity: 0.85; }
+        50%       { filter: drop-shadow(0 0 5px rgba(20,224,122,1));   opacity: 1; }
       }
     `;
     document.head.appendChild(el);
@@ -576,7 +579,11 @@ export default function CodeEditorPage() {
                   theme="vs-dark"
                   value={code}
                   onMount={handleEditorMount}
-                  onChange={(value) => setCode(value ?? "")}
+                  onChange={(value) => {
+                    const v = value ?? "";
+                    setCode(v);
+                    if (editorRef.current && monacoRef.current) applyMarkers(quickLint(v));
+                  }}
                   options={{
                     minimap: { enabled: false },
                     glyphMargin: true,
