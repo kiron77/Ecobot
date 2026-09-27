@@ -101,6 +101,7 @@ export default function CodeEditorPage() {
   const [sketchSheetOpen, setSketchSheetOpen] = useState(false);
   const [pyStatus, setPyStatus] = useState<string>("");
   const [explaining, setExplaining] = useState(false);
+  const [aiExplained, setAiExplained] = useState(false);
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
 
@@ -194,28 +195,48 @@ export default function CodeEditorPage() {
   };
 
   // Push lint issues into Monaco as red/amber squiggles.
-  const applyMarkers = useCallback((issues: LintIssue[]) => {
+  const decorationsRef = useRef<any>(null);
+
+  const applyMarkers = useCallback((issues: LintIssue[], withStars = false) => {
     const monaco = monacoRef.current;
     const ed = editorRef.current;
     if (!monaco || !ed) return;
     const model = ed.getModel();
     if (!model) return;
+
+    // Warnings/tips → squiggle markers. (Errors get a full-line highlight below,
+    // so we only squiggle non-errors to avoid doubling up.)
     const markers = issues
-      .filter((i) => i.line != null)
+      .filter((i) => i.line != null && i.type !== "error")
       .map((i) => ({
         startLineNumber: i.line as number,
         endLineNumber: i.line as number,
         startColumn: 1,
         endColumn: model.getLineMaxColumn(i.line as number),
         message: i.message + (i.fix ? `\n\nFix: ${i.fix}` : ""),
-        severity:
-          i.type === "error"
-            ? monaco.MarkerSeverity.Error
-            : i.type === "warning"
-              ? monaco.MarkerSeverity.Warning
-              : monaco.MarkerSeverity.Info,
+        severity: i.type === "warning" ? monaco.MarkerSeverity.Warning : monaco.MarkerSeverity.Info,
       }));
     monaco.editor.setModelMarkers(model, "ecobot", markers);
+
+    // Errors → whole-line light-red highlight via decorations.
+    const errorDecos = issues
+      .filter((i) => i.line != null && i.type === "error")
+      .map((i) => ({
+        range: new monaco.Range(i.line as number, 1, i.line as number, 1),
+        options: {
+          isWholeLine: true,
+          className: "ecobot-error-line",
+          glyphMarginClassName: withStars ? "ecobot-star-glyph" : undefined,
+          glyphMarginHoverMessage: withStars ? { value: "AI explanation available — see the Debug panel below." } : undefined,
+          hoverMessage: { value: i.message + (i.fix ? `\n\n**Fix:** ${i.fix}` : "") },
+        },
+      }));
+    // use a decorations collection (persists cleanly across updates)
+    if (!decorationsRef.current) {
+      decorationsRef.current = ed.createDecorationsCollection(errorDecos);
+    } else {
+      decorationsRef.current.set(errorDecos);
+    }
   }, []);
 
   const handleEditorMount = useCallback((editor: any, monaco: any) => {
@@ -225,19 +246,47 @@ export default function CodeEditorPage() {
     applyMarkers(quickLint(code));
   }, [applyMarkers, code]);
 
-  // Live lightweight lint (debounced) → red squiggles as you type.
+  // Live lightweight lint (debounced) → highlights + squiggles as you type.
   useEffect(() => {
     const id = setTimeout(() => {
       if (editorRef.current && monacoRef.current) applyMarkers(quickLint(code));
-    }, 400);
+    }, 300);
     return () => clearTimeout(id);
   }, [code, applyMarkers]);
+
+  // Inject styles for the whole-line error highlight (once).
+  useEffect(() => {
+    const STYLE_ID = "ecobot-editor-styles";
+    if (document.getElementById(STYLE_ID)) return;
+    const el = document.createElement("style");
+    el.id = STYLE_ID;
+    el.textContent = `
+      .ecobot-error-line {
+        background: rgba(239, 68, 68, 0.16);
+        border-left: 2px solid rgba(239, 68, 68, 0.9);
+      }
+      .ecobot-star-glyph {
+        background: transparent;
+      }
+      .ecobot-star-glyph::before {
+        content: "\\2605";
+        color: #f5c518;
+        font-size: 13px;
+        display: block;
+        text-align: center;
+        line-height: 18px;
+        filter: drop-shadow(0 0 3px rgba(245,197,24,0.7));
+      }
+    `;
+    document.head.appendChild(el);
+  }, []);
 
 
   const handleDebug = useCallback(async () => {
     if (!code.trim()) return;
     setIsDebugging(true);
     setDebugResult(null);
+    setAiExplained(false);
     setDebugOpen(true);
     setPyStatus("");
     try {
@@ -256,13 +305,27 @@ export default function CodeEditorPage() {
 
   // Optional AI explanation for the current errors (only when the user asks).
   const handleExplain = useCallback(async () => {
-    if (!debugResult || debugResult.issues.length === 0) return;
+    // If they haven't verified yet, run the local check first so there's something to explain.
+    let current = debugResult;
+    if (!current) {
+      current = await pyodideLint(code, (st) => setPyStatus(st));
+      setDebugResult(current);
+      applyMarkers(current.issues);
+      setDebugOpen(true);
+      setPyStatus("");
+    }
+    if (!current || current.issues.length === 0) {
+      toast({ title: "Nothing to explain", description: "No errors found — your code looks good!" });
+      return;
+    }
+    setAiExplained(true);
     setExplaining(true);
+    applyMarkers(current.issues, true);
     try {
       const res = await authFetch("/api/debug/analyze", getToken, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, issues: debugResult.issues, mode: "explain" }),
+        body: JSON.stringify({ code, issues: current.issues, mode: "explain" }),
       });
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({})) as { error?: string; detail?: string };
@@ -424,19 +487,30 @@ export default function CodeEditorPage() {
               onClick={handleDebug}
               disabled={isDebugging || !code.trim()}
               className="gap-1.5 h-8"
-              title="Check your code for errors (instant, offline)"
+              title="Verify your code for errors (instant, offline)"
             >
               {isDebugging ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
-                <Bug className="w-3.5 h-3.5" />
+                <CheckCircle2 className="w-3.5 h-3.5" />
               )}
-              {isDebugging ? (pyStatus || "Checking...") : "Debug"}
+              {isDebugging ? (pyStatus || "Verifying...") : "Verify"}
               {debugResult && !isDebugging && (
                 <span className={`ml-0.5 text-[10px] font-bold ${errorCount > 0 ? "text-destructive" : warnCount > 0 ? "text-amber-500" : "text-green-600"}`}>
                   {errorCount > 0 ? `${errorCount} error${errorCount > 1 ? "s" : ""}` : warnCount > 0 ? `${warnCount} warning${warnCount > 1 ? "s" : ""}` : "✓"}
                 </span>
               )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExplain}
+              disabled={explaining || isDebugging || !code.trim()}
+              className="gap-1.5 h-8"
+              title="Explain your errors with AI"
+            >
+              {explaining ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              {explaining ? "Thinking..." : "AI Debug"}
             </Button>
             <Button
               variant="outline"
@@ -505,6 +579,7 @@ export default function CodeEditorPage() {
                   onChange={(value) => setCode(value ?? "")}
                   options={{
                     minimap: { enabled: false },
+                    glyphMargin: true,
                     fontSize: 14,
                     fontFamily: "var(--app-font-mono)",
                     lineHeight: 1.6,
@@ -544,19 +619,6 @@ export default function CodeEditorPage() {
                       >
                         <ChevronDown className="w-4 h-4" />
                       </button>
-                    )}
-                    {debugResult && debugResult.issues.length > 0 && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleExplain}
-                        disabled={explaining}
-                        className="gap-1.5 h-7 text-xs"
-                        title="Get an AI explanation of these errors"
-                      >
-                        {explaining ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                        {explaining ? "Explaining..." : "Explain with AI"}
-                      </Button>
                     )}
                     <button
                       onClick={() => { setDebugOpen(false); setDebugResult(null); }}
