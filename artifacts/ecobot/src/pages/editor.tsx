@@ -1,13 +1,14 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import MonacoEditor from "@monaco-editor/react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Play, Save, Code, Plus, FileCode, Loader2, CheckCircle2, Trash2, Bug, X, ChevronDown, ChevronUp, Lightbulb, AlertTriangle, AlertCircle, PanelLeft } from "lucide-react";
+import { Play, Save, Code, Plus, FileCode, Loader2, CheckCircle2, Trash2, Bug, X, ChevronDown, ChevronUp, Lightbulb, AlertTriangle, AlertCircle, PanelLeft, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@clerk/react";
+import { quickLint, pyodideLint, type DebugIssue as LintIssue } from "@/lib/ecobot-linter";
 
 // ── Local sketch storage (localStorage, never touches the Projects DB) ────────
 const SKETCHES_KEY = "ecobot_sketches_v1";
@@ -98,6 +99,10 @@ export default function CodeEditorPage() {
   const [debugResult, setDebugResult] = useState<DebugResult | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
   const [sketchSheetOpen, setSketchSheetOpen] = useState(false);
+  const [pyStatus, setPyStatus] = useState<string>("");
+  const [explaining, setExplaining] = useState(false);
+  const editorRef = useRef<any>(null);
+  const monacoRef = useRef<any>(null);
 
   const selected = sketches.find((s) => s.id === selectedId) ?? null;
 
@@ -166,42 +171,113 @@ export default function CodeEditorPage() {
     toast({ title: "Sketch deleted" });
   }, [sketches, selectedId, toast]);
 
-  const handleRun = () => {
+  const handleRun = async () => {
     setIsRunning(true);
-    toast({ title: "Sending to Pico W...", description: "Make sure your device is connected." });
-    setTimeout(() => {
+    try {
+      const nav = navigator as unknown as { serial?: { getPorts: () => Promise<unknown[]> } };
+      if (!nav.serial) {
+        toast({ title: "No serial support", description: "Open EcoBot in Chrome/Edge on a computer to connect a device over USB.", variant: "destructive" });
+        return;
+      }
+      const ports = await nav.serial.getPorts();
+      if (!ports || ports.length === 0) {
+        toast({ title: "Nothing on the serial ports", description: "Plug your Pico W in via USB and grant access to upload. (Live upload coming soon.)", variant: "destructive" });
+        return;
+      }
+      // A device is present — real upload wiring comes in the WebSerial build.
+      toast({ title: "Device detected", description: "Serial upload is coming soon — your Pico W is connected." });
+    } catch (err) {
+      toast({ title: "Serial error", description: err instanceof Error ? err.message : "Could not access serial ports.", variant: "destructive" });
+    } finally {
       setIsRunning(false);
-      toast({ title: "Sent!", description: "Code uploaded to device." });
-    }, 1500);
+    }
   };
+
+  // Push lint issues into Monaco as red/amber squiggles.
+  const applyMarkers = useCallback((issues: LintIssue[]) => {
+    const monaco = monacoRef.current;
+    const ed = editorRef.current;
+    if (!monaco || !ed) return;
+    const model = ed.getModel();
+    if (!model) return;
+    const markers = issues
+      .filter((i) => i.line != null)
+      .map((i) => ({
+        startLineNumber: i.line as number,
+        endLineNumber: i.line as number,
+        startColumn: 1,
+        endColumn: model.getLineMaxColumn(i.line as number),
+        message: i.message + (i.fix ? `\n\nFix: ${i.fix}` : ""),
+        severity:
+          i.type === "error"
+            ? monaco.MarkerSeverity.Error
+            : i.type === "warning"
+              ? monaco.MarkerSeverity.Warning
+              : monaco.MarkerSeverity.Info,
+      }));
+    monaco.editor.setModelMarkers(model, "ecobot", markers);
+  }, []);
+
+  const handleEditorMount = useCallback((editor: any, monaco: any) => {
+    editorRef.current = editor;
+    monacoRef.current = monaco;
+    // initial pass
+    applyMarkers(quickLint(code));
+  }, [applyMarkers, code]);
+
+  // Live lightweight lint (debounced) → red squiggles as you type.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (editorRef.current && monacoRef.current) applyMarkers(quickLint(code));
+    }, 400);
+    return () => clearTimeout(id);
+  }, [code, applyMarkers]);
+
 
   const handleDebug = useCallback(async () => {
     if (!code.trim()) return;
     setIsDebugging(true);
     setDebugResult(null);
     setDebugOpen(true);
+    setPyStatus("");
     try {
-      const res = await authFetch("/api/debug/analyze", getToken, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
-      });
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({})) as { error?: string; detail?: string };
-        const detail = errBody.detail ?? errBody.error ?? `HTTP ${res.status}`;
-        toast({ title: "Debug failed", description: detail, variant: "destructive" });
-        setDebugOpen(false);
-        return;
-      }
-      const data = await res.json() as DebugResult;
+      // LOCAL, instant, free: real Python compile-check (Pyodide) + ecobotOS checks.
+      const data = await pyodideLint(code, (st) => setPyStatus(st));
       setDebugResult(data);
+      applyMarkers(data.issues);
+      setPyStatus("");
     } catch (err) {
-      toast({ title: "Debug failed", description: err instanceof Error ? err.message : "Could not reach the server.", variant: "destructive" });
+      toast({ title: "Debug failed", description: err instanceof Error ? err.message : "Checker error.", variant: "destructive" });
       setDebugOpen(false);
     } finally {
       setIsDebugging(false);
     }
-  }, [code, getToken, toast]);
+  }, [code, toast, applyMarkers]);
+
+  // Optional AI explanation for the current errors (only when the user asks).
+  const handleExplain = useCallback(async () => {
+    if (!debugResult || debugResult.issues.length === 0) return;
+    setExplaining(true);
+    try {
+      const res = await authFetch("/api/debug/analyze", getToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, issues: debugResult.issues, mode: "explain" }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({})) as { error?: string; detail?: string };
+        toast({ title: "AI explain failed", description: errBody.detail ?? errBody.error ?? `HTTP ${res.status}`, variant: "destructive" });
+        return;
+      }
+      const data = await res.json() as DebugResult;
+      // merge AI explanations in as tips alongside the local findings
+      setDebugResult((prev) => prev ? { ...prev, issues: [...prev.issues, ...data.issues.filter((i) => i.type === "tip")], summary: data.summary || prev.summary } : data);
+    } catch (err) {
+      toast({ title: "AI explain failed", description: err instanceof Error ? err.message : "Could not reach the server.", variant: "destructive" });
+    } finally {
+      setExplaining(false);
+    }
+  }, [code, debugResult, getToken, toast]);
 
   const errorCount = debugResult?.issues.filter((i) => i.type === "error").length ?? 0;
   const warnCount = debugResult?.issues.filter((i) => i.type === "warning").length ?? 0;
@@ -348,14 +424,14 @@ export default function CodeEditorPage() {
               onClick={handleDebug}
               disabled={isDebugging || !code.trim()}
               className="gap-1.5 h-8"
-              title="Check code for errors with AI"
+              title="Check your code for errors (instant, offline)"
             >
               {isDebugging ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
                 <Bug className="w-3.5 h-3.5" />
               )}
-              {isDebugging ? "Checking..." : "Debug"}
+              {isDebugging ? (pyStatus || "Checking...") : "Debug"}
               {debugResult && !isDebugging && (
                 <span className={`ml-0.5 text-[10px] font-bold ${errorCount > 0 ? "text-destructive" : warnCount > 0 ? "text-amber-500" : "text-green-600"}`}>
                   {errorCount > 0 ? `${errorCount} error${errorCount > 1 ? "s" : ""}` : warnCount > 0 ? `${warnCount} warning${warnCount > 1 ? "s" : ""}` : "✓"}
@@ -425,6 +501,7 @@ export default function CodeEditorPage() {
                   defaultLanguage="python"
                   theme="vs-dark"
                   value={code}
+                  onMount={handleEditorMount}
                   onChange={(value) => setCode(value ?? "")}
                   options={{
                     minimap: { enabled: false },
@@ -467,6 +544,19 @@ export default function CodeEditorPage() {
                       >
                         <ChevronDown className="w-4 h-4" />
                       </button>
+                    )}
+                    {debugResult && debugResult.issues.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExplain}
+                        disabled={explaining}
+                        className="gap-1.5 h-7 text-xs"
+                        title="Get an AI explanation of these errors"
+                      >
+                        {explaining ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                        {explaining ? "Explaining..." : "Explain with AI"}
+                      </Button>
                     )}
                     <button
                       onClick={() => { setDebugOpen(false); setDebugResult(null); }}
