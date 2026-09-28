@@ -196,6 +196,7 @@ export default function CodeEditorPage() {
 
   // Push lint issues into Monaco as red/amber squiggles.
   const decorationsRef = useRef<any>(null);
+  const starLineMapRef = useRef<Record<number, LintIssue>>({});
 
   const applyMarkers = useCallback((issues: LintIssue[], withStars = false) => {
     const monaco = monacoRef.current;
@@ -221,20 +222,29 @@ export default function CodeEditorPage() {
       }));
     monaco.editor.setModelMarkers(model, "ecobot", markers);
 
-    // Errors → whole-line light-red highlight via decorations.
-    const errorDecos = issues
-      .filter((i) => i.line != null && i.type === "error")
-      .map((i) => ({
-        range: new monaco.Range(i.line as number, 1, i.line as number, 1),
-        options: {
-          isWholeLine: true,
-          className: "ecobot-error-line",
-          glyphMarginClassName: withStars ? "ecobot-star-glyph" : undefined,
-          glyphMarginHoverMessage: withStars ? { value: "AI explanation available — see the Debug panel below." } : undefined,
-          hoverMessage: { value: i.message + (i.fix ? `\n\n**Fix:** ${i.fix}` : "") },
-        },
-      }));
-    // use a decorations collection (persists cleanly across updates)
+    // Errors → whole-line light-red highlight; when withStars, add a clickable
+    // pulsing star AFTER the code text on that line (explains just that line).
+    const errorIssues = issues.filter((i) => i.line != null && i.type === "error");
+    // remember which issue lives on which line, for click-to-explain
+    starLineMapRef.current = {};
+    errorIssues.forEach((i) => { starLineMapRef.current[i.line as number] = i; });
+
+    const errorDecos = errorIssues.map((i) => ({
+      range: new monaco.Range(i.line as number, 1, i.line as number, 1),
+      options: {
+        isWholeLine: true,
+        className: "ecobot-error-line",
+        hoverMessage: { value: i.message + (i.fix ? `\n\n**Fix:** ${i.fix}` : "") },
+        ...(withStars
+          ? {
+              after: {
+                content: "  \u2726",           // 4-point star glyph as end-of-line content
+                inlineClassName: "ecobot-star-after",
+              },
+            }
+          : {}),
+      },
+    }));
     if (!decorationsRef.current) {
       decorationsRef.current = ed.createDecorationsCollection(errorDecos);
     } else {
@@ -242,11 +252,47 @@ export default function CodeEditorPage() {
     }
   }, []);
 
+  // Explain ONE line's error with AI (triggered by clicking its star).
+  const explainLine = useCallback(async (line: number, issue: LintIssue) => {
+    setExplaining(true);
+    setDebugOpen(true);
+    try {
+      const res = await authFetch("/api/debug/analyze", getToken, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, issues: [issue], mode: "explain", focusLine: line }),
+      });
+      if (res.ok) {
+        const data = await res.json() as DebugResult;
+        setDebugResult((prev) => {
+          const base = prev ?? { issues: [], summary: "" };
+          return { ...base, issues: [...base.issues, ...data.issues.filter((i) => i.type === "tip")], summary: data.summary || base.summary };
+        });
+      } else {
+        toast({ title: "AI explain failed", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "AI explain failed", description: "Could not reach the server.", variant: "destructive" });
+    } finally {
+      setExplaining(false);
+    }
+  }, [code, getToken, toast]);
+
   const handleEditorMount = useCallback((editor: any, monaco: any) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
     // initial pass
     applyMarkers(quickLint(code));
+    // Click on the end-of-line star → explain just that line.
+    editor.onMouseDown((e: any) => {
+      const el = e?.target?.element as HTMLElement | undefined;
+      if (el && el.classList && el.classList.contains("ecobot-star-after")) {
+        const ln = e?.target?.position?.lineNumber as number | undefined;
+        if (ln && starLineMapRef.current[ln]) {
+          explainLine(ln, starLineMapRef.current[ln]);
+        }
+      }
+    });
   }, [applyMarkers, code]);
 
   // Live lightweight lint (debounced) → highlights + squiggles as you type.
@@ -268,17 +314,18 @@ export default function CodeEditorPage() {
         background: rgba(239, 68, 68, 0.16);
         border-left: 2px solid rgba(239, 68, 68, 0.9);
       }
-      .ecobot-star-glyph {
-        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2314e07a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z'/></svg>");
-        background-repeat: no-repeat;
-        background-position: center;
-        background-size: 14px 14px;
-        cursor: pointer;
-        animation: ecobot-star-pulse 1.6s ease-in-out infinite;
+      .ecobot-star-after {
+        color: #14e07a !important;
+        font-size: 1.35em !important;
+        font-weight: 700;
+        cursor: pointer !important;
+        pointer-events: auto !important;
+        padding-left: 8px;
+        animation: ecobot-star-pulse 1.4s ease-in-out infinite;
       }
       @keyframes ecobot-star-pulse {
-        0%, 100% { filter: drop-shadow(0 0 1px rgba(20,224,122,0.5)); opacity: 0.85; }
-        50%       { filter: drop-shadow(0 0 5px rgba(20,224,122,1));   opacity: 1; }
+        0%, 100% { text-shadow: 0 0 4px rgba(20,224,122,0.7), 0 0 8px rgba(20,224,122,0.4); opacity: 0.9; }
+        50%      { text-shadow: 0 0 10px rgba(20,224,122,1), 0 0 20px rgba(20,224,122,0.8); opacity: 1; transform: scale(1.05); }
       }
     `;
     document.head.appendChild(el);
