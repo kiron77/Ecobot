@@ -1,10 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { GridTerrain } from "@/components/grid-terrain";
-import { CodeTerminal } from "@/components/code-terminal";
-import { SpeedDial } from "@/components/speed-dial";
-import { PingRadar } from "@/components/ping-radar";
 import { CursorSprocket, BouncingBars, Waveform } from "@/components/sprocket";
 import {
   ArrowRight, ChevronLeft, ChevronRight, Terminal,
@@ -239,38 +235,17 @@ function Gear({ size = 120, dir = "cw", className = "" }: { size?: number; dir?:
 }
 
 export default function Landing() {
-  const speedRef = useRef(1);
   const [, navigate] = useLocation();
   const go = (p: string) => navigate(p);
   useReveal();
 
   return (
     <div className="relative min-h-[100dvh] overflow-x-hidden bg-background text-foreground">
-      {/* ---------- HERO: signature living background ---------- */}
-      <section className="relative min-h-[92vh] overflow-hidden">
-        {/* synthwave 3D grid terrain */}
-        <GridTerrain speedRef={speedRef} />
-        {/* horizon grid + glow */}
-        <div className="pointer-events-none absolute inset-0 bg-grid bg-grid-fade opacity-50" />
-        <div className="horizon-glow pointer-events-none absolute inset-x-0 bottom-0 h-2/3" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background to-transparent" />
-        <div className="pointer-events-none absolute -left-10 top-32 text-primary/20"><Gear size={150} dir="cw" /></div>
-        <div className="pointer-events-none absolute right-8 top-52 text-primary/15 hidden sm:block"><Gear size={90} dir="ccw" /></div>
-
-        {/* ecobotOS code typing terminal, bottom-left over the terrain */}
-        <div className="absolute bottom-24 left-4 z-10 hidden w-64 sm:block md:left-8">
-          <CodeTerminal />
-        </div>
-
-        {/* speed dial in the centre of the path */}
-        <div className="absolute bottom-20 left-1/2 z-10 hidden -translate-x-1/2 sm:block">
-          <SpeedDial speedRef={speedRef} />
-        </div>
-
-        {/* wifi ping radar, bottom-right over the terrain */}
-        <div className="absolute bottom-24 right-4 z-10 hidden w-36 sm:block md:right-8">
-          <PingRadar />
-        </div>
+      {/* ---------- HERO: hardware showcase ---------- */}
+      <section className="relative overflow-hidden">
+        {/* ambient command-center background */}
+        <div className="pointer-events-none absolute inset-0 bg-grid bg-grid-fade opacity-40" />
+        <div className="horizon-glow pointer-events-none absolute inset-x-0 bottom-0 h-1/2" />
 
         {/* nav */}
         <header className="relative z-20">
@@ -285,26 +260,38 @@ export default function Landing() {
           </div>
         </header>
 
-        {/* hero content */}
-        <div className="relative z-10 mx-auto flex max-w-6xl flex-col items-center px-5 pb-24 pt-16 text-center sm:pt-24">
-          <div className="fade-scroll in mb-6 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-3 py-1 font-mono text-xs text-primary">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" /> Raspberry Pi Pico W · modular robotics
+        {/* hero content: text left, board right */}
+        <div className="relative z-10 mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-5 pb-20 pt-10 md:grid-cols-2 md:gap-8 md:pb-28 md:pt-16">
+          {/* left: copy */}
+          <div className="order-2 text-center md:order-1 md:text-left">
+            <div className="fade-scroll in mb-6 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-3 py-1 font-mono text-xs text-primary">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" /> Raspberry Pi Pico W · modular robotics
+            </div>
+            <h1 className="fade-scroll in font-display text-[2.6rem] font-bold leading-[1.04] sm:text-6xl md:text-6xl lg:text-7xl" style={{ textWrap: "balance" }}>
+              <span className="grad-type">Real robots,</span>{" "}
+              <span className="text-primary text-glow">built from scratch.</span>
+            </h1>
+            <p className="fade-scroll in mx-auto mt-6 max-w-xl text-lg text-muted-foreground sm:text-xl md:mx-0">
+              A modular kit that teaches kids to build and program robots that actually move, sense, and respond to the real world.
+            </p>
+            <div className="fade-scroll in mt-9 flex flex-wrap justify-center gap-3 md:justify-start">
+              <Button size="lg" onClick={() => go("/sign-up")} className="bg-primary text-primary-foreground hover:brightness-110">
+                Start building <ArrowRight className="ml-1.5 h-4 w-4" />
+              </Button>
+              <a href="#workbench" className="inline-flex items-center gap-2 rounded-lg border border-primary/30 px-5 py-3 text-sm font-semibold transition hover:border-primary/60 hover:bg-primary/8">
+                Get the kit
+              </a>
+            </div>
           </div>
-          <h1 className="fade-scroll in font-display text-[2.75rem] font-bold leading-[1.02] sm:text-7xl sm:leading-[0.98] md:text-8xl" style={{ textWrap: "balance" }}>
-            <span className="grad-type">Build something</span>
-            <br className="hidden sm:block" />{" "}
-            <span className="text-primary text-glow">that moves.</span>
-          </h1>
-          <p className="fade-scroll in mt-6 max-w-xl text-lg text-muted-foreground sm:text-xl">
-            A real robot from bare boards. Write the code that runs it, and watch its sensors report back live.
-          </p>
-          <div className="fade-scroll in mt-9 flex flex-wrap justify-center gap-3">
-            <Button size="lg" onClick={() => go("/sign-up")} className="bg-primary text-primary-foreground hover:brightness-110">
-              Open the workbench <ArrowRight className="ml-1.5 h-4 w-4" />
-            </Button>
-            <a href="#workbench" className="inline-flex items-center gap-2 rounded-lg border border-primary/30 px-5 py-3 text-sm font-semibold transition hover:border-primary/60 hover:bg-primary/8">
-              See how it works
-            </a>
+
+          {/* right: the real board, with a soft green glow */}
+          <div className="fade-scroll in relative order-1 mx-auto w-full max-w-xl md:order-2">
+            <div className="pointer-events-none absolute inset-0 -z-10 scale-110 rounded-full bg-primary/20 blur-3xl" />
+            <img
+              src="/hardware-hero.png"
+              alt="The EcoBot motherboard — a custom PCB with a Raspberry Pi Pico W, module ports, and power, powered on."
+              className="w-full h-auto drop-shadow-[0_8px_40px_rgba(20,224,122,0.25)]"
+            />
           </div>
         </div>
       </section>
