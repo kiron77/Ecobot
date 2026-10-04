@@ -137,6 +137,9 @@ class EcoBotOS:
         for i in range(1, 5): setattr(self, "m%d" % i, _Motor("m%d" % i))
         for i in range(1, 9): setattr(self, "p%d" % i, _Port("p%d" % i))
 
+import time as _time
+_time.sleep = lambda *a, **k: None  # don't actually wait during checks
+
 forward = "forward"
 reverse = "reverse"
 
@@ -147,6 +150,21 @@ sys.modules["ecobot_os"] = _m
 `;
 
 // Cache the Pyodide instance across calls.
+function friendlyFix(msg: string): string | null {
+  if (msg.includes("has no attribute")) {
+    const m = msg.match(/attribute '([^']+)'/);
+    return m ? `"${m[1]}" isn't a real command. Check your spelling (e.g. spin, read).` : "That command doesn't exist — check the spelling.";
+  }
+  if (msg.startsWith("NameError")) {
+    const m = msg.match(/name '([^']+)'/);
+    return m ? `"${m[1]}" isn't defined. Did you spell it right, or forget to create it?` : "You're using something that hasn't been defined.";
+  }
+  if (msg.startsWith("TypeError")) return "Check the arguments you're passing to this command.";
+  if (msg.startsWith("SyntaxError")) return "There's a typo in the code structure on this line.";
+  if (msg.startsWith("IndentationError")) return "Check your indentation (use 4 spaces per level).";
+  return null;
+}
+
 let pyodidePromise: Promise<any> | null = null;
 
 async function getPyodide(onStatus?: (s: string) => void): Promise<any> {
@@ -189,17 +207,25 @@ export async function pyodideLint(code: string, onStatus?: (s: string) => void):
 
   const pyIssues: DebugIssue[] = [];
   try {
-    // compile() catches syntax errors without executing. We escape the user code.
     pyodide.globals.set("__user_code__", code);
+    // Actually RUN the code against the ecobotOS stub in a fresh namespace.
+    // This catches real errors: undefined names, bad/typo'd methods, wrong args,
+    // as well as syntax errors — exactly what a compile-only check misses.
     await pyodide.runPythonAsync(`
-import json as _json
+import json as _json, traceback as _tb
 __err__ = None
+_ns = {}
 try:
-    compile(__user_code__, "<sketch>", "exec")
+    exec(compile(__user_code__, "<sketch>", "exec"), _ns, _ns)
 except SyntaxError as e:
-    __err__ = _json.dumps({"line": e.lineno, "msg": e.msg, "text": (e.text or "").strip()})
+    __err__ = _json.dumps({"line": e.lineno, "msg": "SyntaxError: " + (e.msg or ""), "text": (e.text or "").strip()})
 except Exception as e:
-    __err__ = _json.dumps({"line": None, "msg": str(e), "text": ""})
+    # find the line number inside <sketch> from the traceback
+    _ln = None
+    for fr in _tb.extract_tb(e.__traceback__):
+        if fr.filename == "<sketch>":
+            _ln = fr.lineno
+    __err__ = _json.dumps({"line": _ln, "msg": type(e).__name__ + ": " + str(e), "text": ""})
 `);
     const errRaw = pyodide.globals.get("__err__");
     if (errRaw) {
@@ -207,8 +233,8 @@ except Exception as e:
       pyIssues.push({
         line: err.line,
         type: "error",
-        message: `Python syntax error: ${err.msg}${err.text ? ` — near "${err.text}"` : ""}`,
-        fix: null,
+        message: err.msg + (err.text ? ` — near "${err.text}"` : ""),
+        fix: friendlyFix(err.msg),
       });
     }
   } catch (e) {

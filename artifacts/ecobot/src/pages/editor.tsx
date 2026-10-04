@@ -9,6 +9,7 @@ import { Play, Save, Code, Plus, FileCode, Loader2, CheckCircle2, Trash2, Bug, X
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@clerk/react";
 import { quickLint, pyodideLint, type DebugIssue as LintIssue } from "@/lib/ecobot-linter";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // ── Local sketch storage (localStorage, never touches the Projects DB) ────────
 const SKETCHES_KEY = "ecobot_sketches_v1";
@@ -102,6 +103,8 @@ export default function CodeEditorPage() {
   const [pyStatus, setPyStatus] = useState<string>("");
   const [explaining, setExplaining] = useState(false);
   const [aiExplained, setAiExplained] = useState(false);
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [aiTips, setAiTips] = useState<LintIssue[]>([]);
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
 
@@ -264,10 +267,9 @@ export default function CodeEditorPage() {
       });
       if (res.ok) {
         const data = await res.json() as DebugResult;
-        setDebugResult((prev) => {
-          const base = prev ?? { issues: [], summary: "" };
-          return { ...base, issues: [...base.issues, ...data.issues.filter((i) => i.type === "tip")], summary: data.summary || base.summary };
-        });
+        const tips = data.issues.filter((i) => i.type === "tip");
+        setAiTips(tips.length ? tips : data.issues);
+        setAiDialogOpen(true);
       } else {
         toast({ title: "AI explain failed", variant: "destructive" });
       }
@@ -384,7 +386,9 @@ export default function CodeEditorPage() {
       }
       const data = await res.json() as DebugResult;
       // merge AI explanations in as tips alongside the local findings
-      setDebugResult((prev) => prev ? { ...prev, issues: [...prev.issues, ...data.issues.filter((i) => i.type === "tip")], summary: data.summary || prev.summary } : data);
+      const tips = data.issues.filter((i) => i.type === "tip");
+      setAiTips(tips.length ? tips : data.issues);
+      setAiDialogOpen(true);
     } catch (err) {
       toast({ title: "AI explain failed", description: err instanceof Error ? err.message : "Could not reach the server.", variant: "destructive" });
     } finally {
@@ -760,6 +764,40 @@ export default function CodeEditorPage() {
           </div>
         )}
       </div>
+      {/* AI Debug — separate popup window */}
+      <Dialog open={aiDialogOpen} onOpenChange={setAiDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              AI Debug
+            </DialogTitle>
+          </DialogHeader>
+          {explaining ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground py-6">
+              <Loader2 className="w-4 h-4 animate-spin" /> Thinking through your code...
+            </div>
+          ) : aiTips.length > 0 ? (
+            <div className="space-y-3">
+              {aiTips.map((tip, idx) => (
+                <div key={idx} className="rounded-md border border-primary/20 bg-primary/5 p-3">
+                  {tip.line != null && (
+                    <div className="text-[11px] font-mono text-primary mb-1">Line {tip.line}</div>
+                  )}
+                  <p className="text-sm leading-relaxed">{tip.message}</p>
+                  {tip.fix && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      <span className="font-semibold text-foreground">Fix: </span>{tip.fix}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground py-4">No explanation available.</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
