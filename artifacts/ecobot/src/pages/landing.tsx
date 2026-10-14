@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { CursorSprocket, BouncingBars, Waveform } from "@/components/sprocket";
 import {
-  ArrowRight, ChevronLeft, ChevronRight, Terminal,
+  ArrowRight, Terminal,
   Radio, UploadCloud, Bug, Code2, ShoppingCart, Cpu, Wifi, Gauge,
 } from "lucide-react";
 
@@ -14,10 +14,15 @@ function useReveal() {
     if (!("IntersectionObserver" in window)) { els.forEach((e) => e.classList.add("in")); return; }
     const io = new IntersectionObserver(
       (ents) => ents.forEach((en) => {
-        // fade in AND out: toggle based on whether it's in view
-        en.target.classList.toggle("in", en.isIntersecting);
+        // Reveal ONCE: as soon as it enters, lock it in and stop watching it.
+        // (Toggling in/out caused violent flashing when an element sat on the
+        // viewport edge and kept re-crossing the trigger line.)
+        if (en.isIntersecting) {
+          en.target.classList.add("in");
+          io.unobserve(en.target);
+        }
       }),
-      { threshold: 0.12, rootMargin: "-8% 0px -8% 0px" },
+      { threshold: 0.1, rootMargin: "0px 0px -10% 0px" },
     );
     els.forEach((e) => io.observe(e));
     return () => io.disconnect();
@@ -125,87 +130,14 @@ function Readout({ label, unit, min, max, icon: Icon }: {
   );
 }
 
-/* ===================== coverflow ===================== */
-type Slide = { title: string; caption: string };
-const SLIDES: Slide[] = [
-  { title: "Ultrasonic module", caption: "STM32 + HC-SR04, one I2C address" },
-  { title: "Motor driver board", caption: "Dual H-bridge, four motors" },
-  { title: "Live IoT dashboard", caption: "Sensor data, streamed in real time" },
-  { title: "The motherboard", caption: "Pico W, 8 sensor ports, 2 motor rails" },
-  { title: "Servo module", caption: "Precise angle control, snap-on" },
-];
-function Coverflow() {
-  const [idx, setIdx] = useState(0);
-  const n = SLIDES.length;
-  const paused = useRef(false);
-  const go = useCallback((dir: number) => setIdx((i) => (i + dir + n) % n), [n]);
-  useEffect(() => {
-    const id = setInterval(() => { if (!paused.current) setIdx((i) => (i + 1) % n); }, 3200);
-    return () => clearInterval(id);
-  }, [n]);
-  const startX = useRef<number | null>(null);
-  const onDown = (x: number) => { startX.current = x; paused.current = true; };
-  const onUp = (x: number) => {
-    if (startX.current !== null) { const dx = x - startX.current; if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1); }
-    startX.current = null; setTimeout(() => (paused.current = false), 600);
-  };
-  const offsetOf = (i: number) => { let d = i - idx; if (d > n / 2) d -= n; if (d < -n / 2) d += n; return d; };
-  return (
-    <div
-      className="relative select-none"
-      onMouseEnter={() => (paused.current = true)} onMouseLeave={() => (paused.current = false)}
-      onTouchStart={(e) => onDown(e.touches[0].clientX)} onTouchEnd={(e) => onUp(e.changedTouches[0].clientX)}
-      onMouseDown={(e) => onDown(e.clientX)} onMouseUp={(e) => onUp(e.clientX)}
-    >
-      <div className="relative mx-auto h-[300px] max-w-3xl sm:h-[340px]" style={{ perspective: "1400px" }}>
-        {SLIDES.map((s, i) => {
-          const d = offsetOf(i); const abs = Math.abs(d);
-          if (abs > 1) return <div key={i} aria-hidden className="pointer-events-none absolute inset-0 opacity-0" />;
-          const isCenter = d === 0;
-          return (
-            <div key={i}
-              className="absolute left-1/2 top-1/2 w-[62%] max-w-md transition-all duration-700 ease-[cubic-bezier(.16,1,.3,1)] sm:w-[56%]"
-              style={{
-                transform: `translate(-50%,-50%) translateX(${d * 62}%) scale(${isCenter ? 1 : 0.78}) rotateY(${d * -22}deg)`,
-                zIndex: isCenter ? 30 : 10, opacity: isCenter ? 1 : 0.5,
-              }}>
-              <div className={`edge overflow-hidden rounded-sm border bg-card ${isCenter ? "border-primary/30 term-glow" : "border-border"}`}>
-                <div className="flex aspect-[4/3] items-center justify-center bg-gradient-to-br from-card to-background">
-                  <div className="px-5 text-center">
-                    <div className="mx-auto mb-2 grid h-9 w-9 place-items-center rounded-lg bg-primary/10">
-                      <Cpu className={`h-5 w-5 ${isCenter ? "text-primary" : "text-muted-foreground"}`} />
-                    </div>
-                    <div className="font-mono text-[11px] text-muted-foreground">[ photo ]</div>
-                  </div>
-                </div>
-                <div className="border-t border-border px-4 py-2.5">
-                  <div className="text-sm font-semibold">{s.title}</div>
-                  <div className="text-xs text-muted-foreground">{s.caption}</div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <button onClick={() => go(-1)} aria-label="Previous"
-        className="absolute left-0 top-1/2 z-40 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-border bg-card/90 text-foreground transition hover:border-primary/50 hover:text-primary">
-        <ChevronLeft className="h-5 w-5" />
-      </button>
-      <button onClick={() => go(1)} aria-label="Next"
-        className="absolute right-0 top-1/2 z-40 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-border bg-card/90 text-foreground transition hover:border-primary/50 hover:text-primary">
-        <ChevronRight className="h-5 w-5" />
-      </button>
-      <div className="mt-14 flex justify-center gap-2.5">
-        {SLIDES.map((_, i) => (
-          <button key={i} onClick={() => setIdx(i)} aria-label={`Slide ${i + 1}`}
-            className={`h-2 rounded-full transition-all ${i === idx ? "w-7 bg-primary" : "w-2 bg-border hover:bg-muted-foreground"}`} />
-        ))}
-      </div>
-    </div>
-  );
-}
 
 /* ===================== feature rundown ===================== */
+const MODULES = [
+  { name: "Ultrasonic Sensor", desc: "Measures distance so your robot can see and avoid obstacles.", img: "/module-ultrasonic.png", icon: Radio },
+  { name: "Motor + Wheel", desc: "Drives your robot forward, reverse, and turns on command.", img: "/module-motor.png", icon: Cpu },
+  { name: "The EcoBot Kit", desc: "Pico W brain, power, and module ports on one custom board.", img: "/kit-assembled.png", icon: Terminal },
+];
+
 const FEATURES = [
   { icon: Radio, name: "IoT dashboard", line: "Live sensor data, streamed" },
   { icon: UploadCloud, name: "OTA upload", line: "Push code over WiFi" },
@@ -241,11 +173,37 @@ export default function Landing() {
 
   return (
     <div className="relative min-h-[100dvh] overflow-x-hidden bg-background text-foreground">
+      {/* motion styles */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&display=swap');
+        @keyframes eco-float-kf {
+          0%, 100% { transform: translateY(0); }
+          50%      { transform: translateY(-10px); }
+        }
+        .eco-float { animation: eco-float-kf 5s ease-in-out infinite; }
+        .eco-note {
+          font-family: 'Caveat', cursive;
+          color: hsl(148 60% 62%);
+          opacity: 0.55;
+          pointer-events: none;
+          user-select: none;
+          white-space: nowrap;
+          text-shadow: 0 0 12px rgba(20,224,122,0.25);
+        }
+        .eco-doodle { color: hsl(148 60% 62%); opacity: 0.45; pointer-events: none; }
+        @media (prefers-reduced-motion: reduce) { .eco-float { animation: none; } }
+      `}</style>
       {/* ---------- HERO: hardware showcase ---------- */}
       <section className="relative overflow-hidden">
         {/* ambient command-center background */}
         <div className="pointer-events-none absolute inset-0 bg-grid bg-grid-fade opacity-40" />
         <div className="horizon-glow pointer-events-none absolute inset-x-0 bottom-0 h-1/2" />
+        {/* handwritten math scattered in the hero (desktop) */}
+        <div className="pointer-events-none absolute inset-0 z-0 hidden overflow-hidden lg:block" aria-hidden="true">
+          <span className="eco-note absolute right-[6%] top-[14%] text-2xl rotate-6">V = I × R</span>
+          <span className="eco-note absolute right-[44%] bottom-[12%] text-xl -rotate-3">3 × 1.5V = 4.5V</span>
+          <span className="eco-note absolute right-[2%] bottom-[20%] text-lg rotate-3">← Pico W</span>
+        </div>
 
         {/* nav */}
         <header className="relative z-20">
@@ -332,14 +290,65 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ---------- CATALOG: coverflow ---------- */}
+      {/* ---------- CATALOG: real modules + handwritten math ---------- */}
       <section className="relative z-10 mx-auto max-w-6xl px-5 py-24 md:py-28">
-        <div className="fade-scroll mb-3 font-mono text-xs uppercase tracking-[0.14em] text-primary">The catalog</div>
-        <div className="fade-scroll mb-12 max-w-xl">
+        {/* scattered handwritten equations + sketch doodles (desktop only) */}
+        <div className="pointer-events-none absolute inset-0 z-0 hidden overflow-hidden lg:block" aria-hidden="true">
+          <span className="eco-note absolute left-[2%] top-[22%] text-2xl -rotate-6">v = d / t</span>
+          <span className="eco-note absolute right-[3%] top-[30%] text-3xl rotate-6">distance = (v × t) / 2</span>
+          <span className="eco-note absolute left-[6%] bottom-[18%] text-2xl rotate-3">P = I × V</span>
+          <span className="eco-note absolute right-[7%] bottom-[22%] text-xl -rotate-3">F = m·a</span>
+          <span className="eco-note absolute left-[44%] top-[8%] text-lg rotate-2">↳ reads distance</span>
+          {/* little sketch arrow */}
+          <svg className="eco-doodle absolute right-[18%] top-[44%]" width="90" height="60" viewBox="0 0 90 60" fill="none">
+            <path d="M5 50 C 30 10, 55 55, 82 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+            <path d="M82 12 l -12 2 M82 12 l -3 11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+          </svg>
+          {/* circled note */}
+          <svg className="eco-doodle absolute left-[16%] top-[40%]" width="120" height="70" viewBox="0 0 120 70" fill="none">
+            <ellipse cx="60" cy="35" rx="54" ry="26" stroke="currentColor" strokeWidth="2.5" strokeDasharray="2 0" transform="rotate(-6 60 35)"/>
+          </svg>
+          {/* underline squiggle */}
+          <svg className="eco-doodle absolute right-[30%] bottom-[14%]" width="110" height="16" viewBox="0 0 110 16" fill="none">
+            <path d="M2 8 Q 18 2, 34 8 T 68 8 T 104 8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+          </svg>
+          {/* more equations */}
+          <span className="eco-note absolute left-[30%] bottom-[8%] text-xl -rotate-2">ω = v / r</span>
+          <span className="eco-note absolute right-[2%] top-[58%] text-2xl rotate-6">τ = F × r</span>
+          <span className="eco-note absolute left-[2%] top-[52%] text-lg rotate-4">RPM ∝ duty%</span>
+          <span className="eco-note absolute right-[20%] top-[8%] text-lg -rotate-3">if dist &lt; 10: stop()</span>
+          {/* stacked wheels — floating hardware accent with its own note */}
+          <div className="absolute right-[1%] bottom-[2%] w-40 opacity-90">
+            <img src="/wheels-stacked.png" alt="A pair of EcoBot drive wheels." className="eco-float w-full object-contain drop-shadow-[0_8px_30px_rgba(0,0,0,0.5)]" style={{ animationDelay: "1.2s" }} />
+            <span className="eco-note absolute -left-16 top-4 text-lg rotate-6" style={{ opacity: 0.7 }}>C = 2πr</span>
+          </div>
+        </div>
+        <div className="fade-scroll relative z-10 mb-3 font-mono text-xs uppercase tracking-[0.14em] text-primary">The catalog</div>
+        <div className="fade-scroll relative z-10 mb-12 max-w-xl">
           <h2 className="font-display text-4xl font-bold sm:text-5xl" style={{ textWrap: "balance" }}>Snap on what your build needs</h2>
           <p className="mt-3 text-lg text-muted-foreground">One module at a time. Each carries its own brain and speaks over a single wire.</p>
         </div>
-        <div className="fade-scroll"><Coverflow /></div>
+        <div className="relative z-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {MODULES.map((m, i) => (
+            <div
+              key={m.name}
+              className="eco-float fade-scroll group relative overflow-hidden rounded-sm border border-border bg-card/60 p-5 transition-all duration-300 hover:-translate-y-2 hover:border-primary/50 hover:shadow-[0_12px_48px_-12px_rgba(20,224,122,0.4)]"
+              style={{ transitionDelay: `${i * 90}ms`, animationDelay: `${i * 0.4}s` }}
+            >
+              <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-primary/10 blur-2xl transition-opacity duration-300 group-hover:opacity-100 opacity-40" />
+              <div className="relative mb-4 flex h-40 items-center justify-center">
+                <img src={m.img} alt={m.name} className="max-h-40 w-auto object-contain drop-shadow-[0_6px_24px_rgba(20,224,122,0.2)] transition-transform duration-500 group-hover:scale-105" />
+              </div>
+              <div className="relative">
+                <div className="flex items-center gap-2">
+                  <m.icon className="h-4 w-4 text-primary" />
+                  <h3 className="font-display text-lg font-semibold">{m.name}</h3>
+                </div>
+                <p className="mt-1.5 text-sm text-muted-foreground">{m.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* ---------- WHAT'S INSIDE: feature rundown ---------- */}
@@ -362,6 +371,58 @@ export default function Landing() {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ---------- THE APP: iPhone mockups ---------- */}
+      <section className="relative z-10 mx-auto max-w-6xl overflow-hidden px-5 py-24 md:py-28">
+        <div className="fade-scroll mb-3 font-mono text-xs uppercase tracking-[0.14em] text-primary">The app</div>
+        <div className="fade-scroll mb-14 max-w-xl">
+          <h2 className="font-display text-4xl font-bold sm:text-5xl" style={{ textWrap: "balance" }}>
+            Code it from <span className="text-primary text-glow">anywhere</span>.
+          </h2>
+          <p className="mt-3 text-lg text-muted-foreground">
+            Write real MicroPython, catch your own bugs instantly, and let Sprocket explain anything. On your laptop, tablet, or phone.
+          </p>
+        </div>
+
+        <div className="relative grid grid-cols-1 items-center gap-10 md:grid-cols-2 md:gap-16">
+          {/* phones */}
+          <div className="relative flex items-end justify-center gap-4 sm:gap-6">
+            <div className="pointer-events-none absolute inset-0 -z-10 mx-auto h-full w-3/4 rounded-full bg-primary/15 blur-3xl" />
+            <img
+              src="/app-dashboard.png"
+              alt="EcoBot dashboard on a phone — connect your Pico W, see your sketches and AI sessions."
+              className="eco-float w-[46%] max-w-[240px] translate-y-4 drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+              style={{ animationDelay: "0s" }}
+            />
+            <img
+              src="/app-editor.png"
+              alt="EcoBot code editor on a phone — live debugging with error explanations and suggested fixes."
+              className="eco-float w-[46%] max-w-[240px] -translate-y-4 drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+              style={{ animationDelay: "0.8s" }}
+            />
+          </div>
+
+          {/* feature points */}
+          <div className="space-y-6">
+            {[
+              { icon: Code2, title: "A real code editor", line: "Full MicroPython editor with syntax highlighting, right in the browser." },
+              { icon: Bug, title: "Instant debugging", line: "Errors are caught and highlighted as you type, before you ever run." },
+              { icon: Terminal, title: "Sprocket explains it", line: "Stuck on an error? Your AI tutor breaks it down in plain language." },
+              { icon: Wifi, title: "Upload over USB or WiFi", line: "Push your code straight to the Pico W and watch it come alive." },
+            ].map((f, i) => (
+              <div key={f.title} className="fade-scroll flex items-start gap-4" style={{ transitionDelay: `${i * 80}ms` }}>
+                <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                  <f.icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="font-display text-base font-semibold">{f.title}</div>
+                  <div className="mt-0.5 text-sm text-muted-foreground">{f.line}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
