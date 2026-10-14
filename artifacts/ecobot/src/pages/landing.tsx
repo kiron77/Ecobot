@@ -138,6 +138,31 @@ const MODULES = [
   { name: "The EcoBot Kit", desc: "Pico W brain, power, and module ports on one custom board.", img: "/kit-assembled.png", icon: Terminal },
 ];
 
+/* handwritten annotations drawn ON each module image (desktop), by card index */
+const CARD_NOTES: { notes: { cls: string; txt: string }[]; circle?: string; arrow?: string }[] = [
+  { // Ultrasonic
+    notes: [
+      { cls: "left-[2%] top-[4%] text-lg -rotate-3", txt: "d = v·t / 2" },
+      { cls: "right-[2%] bottom-[6%] text-base rotate-3", txt: "↳ echo" },
+    ],
+    circle: "left-[30%] top-[18%]",
+  },
+  { // Motor + Wheel
+    notes: [
+      { cls: "right-[2%] top-[4%] text-lg rotate-3", txt: "ω = v / r" },
+      { cls: "left-[2%] bottom-[6%] text-base -rotate-2", txt: "τ = F·r" },
+    ],
+    arrow: "right-[14%] bottom-[20%]",
+  },
+  { // The EcoBot Kit
+    notes: [
+      { cls: "left-[2%] top-[4%] text-lg rotate-2", txt: "V = I·R" },
+      { cls: "right-[2%] bottom-[6%] text-base -rotate-3", txt: "↳ Pico W" },
+    ],
+    circle: "right-[26%] top-[16%]",
+  },
+];
+
 const FEATURES = [
   { icon: Radio, name: "IoT dashboard", line: "Live sensor data, streamed" },
   { icon: UploadCloud, name: "OTA upload", line: "Push code over WiFi" },
@@ -163,6 +188,81 @@ function Gear({ size = 120, dir = "cw", className = "" }: { size?: number; dir?:
         <circle cx="50" cy="50" r="12" strokeWidth="5" />
       </g>
     </svg>
+  );
+}
+
+/* ===================== handwritten math decor ===================== */
+function Note({ className = "", style, children }: {
+  className?: string; style?: React.CSSProperties; children: React.ReactNode;
+}) {
+  return <span className={`eco-note absolute ${className}`} style={style}>{children}</span>;
+}
+function CircleDoodle({ className = "", w = 120, h = 70 }: { className?: string; w?: number; h?: number }) {
+  return (
+    <svg className={`eco-doodle absolute ${className}`} width={w} height={h} viewBox="0 0 120 70" fill="none" aria-hidden="true">
+      <ellipse cx="60" cy="35" rx="54" ry="26" stroke="currentColor" strokeWidth="2.5" transform="rotate(-6 60 35)" />
+    </svg>
+  );
+}
+function ArrowDoodle({ className = "", flip = false }: { className?: string; flip?: boolean }) {
+  return (
+    <svg className={`eco-doodle absolute ${className}`} width="90" height="60" viewBox="0 0 90 60" fill="none"
+      aria-hidden="true" style={flip ? { transform: "scaleX(-1)" } : undefined}>
+      <path d="M5 50 C 30 10, 55 55, 82 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+      <path d="M82 12 l -12 2 M82 12 l -3 11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+function SquiggleDoodle({ className = "" }: { className?: string }) {
+  return (
+    <svg className={`eco-doodle absolute ${className}`} width="110" height="16" viewBox="0 0 110 16" fill="none" aria-hidden="true">
+      <path d="M2 8 Q 18 2, 34 8 T 68 8 T 104 8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+    </svg>
+  );
+}
+
+/* Full-page side rails: handwritten math running down BOTH edges, the whole
+   length of the site. Sits behind all content (z-0) so it fills the gutters
+   on wide screens and peeks behind cards on narrower ones. Desktop only. */
+function PageSideRails() {
+  return (
+    <div className="pointer-events-none absolute inset-0 z-0 hidden overflow-hidden lg:block" aria-hidden="true">
+      {/* ---- left edge, top → bottom ---- */}
+      <Note className="left-[2%] top-[7%] text-2xl -rotate-6">V = I · R</Note>
+      <Note className="left-[3.5%] top-[13%] text-lg rotate-3">E = mc²</Note>
+      <Note className="left-[1.5%] top-[20%] text-xl rotate-2">a² + b² = c²</Note>
+      <Note className="left-[3%] top-[27%] text-lg -rotate-3">∑F = m·a</Note>
+      <Note className="left-[2%] top-[34%] text-2xl rotate-4">ω = v / r</Note>
+      <Note className="left-[3.5%] top-[41%] text-base -rotate-2">KE = ½mv²</Note>
+      <Note className="left-[1.5%] top-[48%] text-xl rotate-3">λ = c / f</Note>
+      <Note className="left-[3%] top-[55%] text-lg -rotate-4">τ = F × r</Note>
+      <Note className="left-[2%] top-[62%] text-2xl rotate-2">P = I · V</Note>
+      <Note className="left-[3.5%] top-[69%] text-base rotate-5">dx/dt</Note>
+      <Note className="left-[1.5%] top-[76%] text-xl -rotate-3">f = 1 / T</Note>
+      <Note className="left-[3%] top-[83%] text-lg rotate-3">Q = C · V</Note>
+      <Note className="left-[2%] top-[90%] text-xl -rotate-2">Δv = a · t</Note>
+      <ArrowDoodle className="left-[5%] top-[31%]" />
+      <SquiggleDoodle className="left-[2%] top-[45%]" />
+      <CircleDoodle className="left-[1%] top-[64%]" w={110} h={64} />
+
+      {/* ---- right edge, top → bottom ---- */}
+      <Note className="right-[2%] top-[9%] text-2xl rotate-6">F = q · E</Note>
+      <Note className="right-[3.5%] top-[15%] text-lg -rotate-3">p = m · v</Note>
+      <Note className="right-[1.5%] top-[22%] text-xl -rotate-2">θ = ω · t</Note>
+      <Note className="right-[3%] top-[29%] text-base rotate-3">g = 9.81 m/s²</Note>
+      <Note className="right-[2%] top-[37%] text-2xl -rotate-5">v = d / t</Note>
+      <Note className="right-[3.5%] top-[44%] text-lg rotate-2">sin²θ + cos²θ = 1</Note>
+      <Note className="right-[1.5%] top-[51%] text-xl rotate-4">W = F · d</Note>
+      <Note className="right-[3%] top-[58%] text-base -rotate-3">C = 2πr</Note>
+      <Note className="right-[2%] top-[65%] text-2xl rotate-2">I = Q / t</Note>
+      <Note className="right-[3.5%] top-[72%] text-lg -rotate-4">eⁱᵖ + 1 = 0</Note>
+      <Note className="right-[1.5%] top-[79%] text-xl rotate-3">n = PV / RT</Note>
+      <Note className="right-[3%] top-[86%] text-base -rotate-2">RPM ∝ duty%</Note>
+      <Note className="right-[2%] top-[93%] text-xl rotate-5">π ≈ 3.14159</Note>
+      <ArrowDoodle className="right-[5%] top-[34%]" flip />
+      <SquiggleDoodle className="right-[2%] top-[49%]" />
+      <CircleDoodle className="right-[1%] top-[68%]" w={110} h={64} />
+    </div>
   );
 }
 
@@ -193,17 +293,15 @@ export default function Landing() {
         .eco-doodle { color: hsl(148 60% 62%); opacity: 0.45; pointer-events: none; }
         @media (prefers-reduced-motion: reduce) { .eco-float { animation: none; } }
       `}</style>
+
+      {/* handwritten math running down BOTH edges, the whole length of the page */}
+      <PageSideRails />
+
       {/* ---------- HERO: hardware showcase ---------- */}
       <section className="relative overflow-hidden">
         {/* ambient command-center background */}
         <div className="pointer-events-none absolute inset-0 bg-grid bg-grid-fade opacity-40" />
         <div className="horizon-glow pointer-events-none absolute inset-x-0 bottom-0 h-1/2" />
-        {/* handwritten math scattered in the hero (desktop) */}
-        <div className="pointer-events-none absolute inset-0 z-0 hidden overflow-hidden lg:block" aria-hidden="true">
-          <span className="eco-note absolute right-[6%] top-[14%] text-2xl rotate-6">V = I × R</span>
-          <span className="eco-note absolute right-[44%] bottom-[12%] text-xl -rotate-3">3 × 1.5V = 4.5V</span>
-          <span className="eco-note absolute right-[2%] bottom-[20%] text-lg rotate-3">← Pico W</span>
-        </div>
 
         {/* nav */}
         <header className="relative z-20">
@@ -242,7 +340,7 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* right: the real board, with a soft green glow */}
+          {/* right: the real board, with a soft green glow + math drawn ON it */}
           <div className="fade-scroll in relative order-1 mx-auto w-full max-w-xl md:order-2">
             <div className="pointer-events-none absolute inset-0 -z-10 scale-110 rounded-full bg-primary/20 blur-3xl" />
             <img
@@ -250,6 +348,16 @@ export default function Landing() {
               alt="The EcoBot motherboard — a custom PCB with a Raspberry Pi Pico W, module ports, and power, powered on."
               className="w-full h-auto drop-shadow-[0_8px_40px_rgba(20,224,122,0.25)]"
             />
+            {/* annotations drawn directly over the board (desktop) */}
+            <div className="pointer-events-none absolute inset-0 hidden lg:block" aria-hidden="true">
+              <Note className="left-[6%] top-[8%] text-xl rotate-3" style={{ opacity: 0.75 }}>3 × 1.5V = 4.5V</Note>
+              <Note className="right-[8%] top-[22%] text-2xl -rotate-3" style={{ opacity: 0.75 }}>V = I · R</Note>
+              <CircleDoodle className="left-[32%] top-[30%]" w={130} h={76} />
+              <Note className="left-[30%] top-[18%] text-base rotate-2" style={{ opacity: 0.8 }}>↳ Pico W</Note>
+              <ArrowDoodle className="right-[18%] bottom-[26%]" />
+              <Note className="right-[6%] bottom-[14%] text-lg rotate-3" style={{ opacity: 0.75 }}>module port</Note>
+              <Note className="left-[8%] bottom-[16%] text-xl -rotate-2" style={{ opacity: 0.75 }}>GPIO → one wire</Note>
+            </div>
           </div>
         </div>
       </section>
@@ -286,41 +394,24 @@ export default function Landing() {
             <div className="tilt-window-r">
               <LiveTerminal />
             </div>
+            {/* handwritten math drawn around the terminal (desktop) */}
+            <div className="pointer-events-none absolute inset-0 z-20 hidden lg:block" aria-hidden="true">
+              <Note className="left-[-8%] top-[-6%] text-xl -rotate-6" style={{ opacity: 0.7 }}>f = 1 / T</Note>
+              <Note className="right-[2%] top-[-8%] text-lg rotate-3" style={{ opacity: 0.7 }}>baud = 115200</Note>
+              <Note className="left-[-6%] bottom-[-4%] text-base rotate-2" style={{ opacity: 0.7 }}>t ∝ 1/clk</Note>
+              <ArrowDoodle className="left-[2%] bottom-[6%]" />
+            </div>
           </div>
         </div>
       </section>
 
       {/* ---------- CATALOG: real modules + handwritten math ---------- */}
       <section className="relative z-10 mx-auto max-w-6xl px-5 py-24 md:py-28">
-        {/* scattered handwritten equations + sketch doodles (desktop only) */}
+        {/* stacked-wheels hardware accent, tucked bottom-right with its note */}
         <div className="pointer-events-none absolute inset-0 z-0 hidden overflow-hidden lg:block" aria-hidden="true">
-          <span className="eco-note absolute left-[2%] top-[22%] text-2xl -rotate-6">v = d / t</span>
-          <span className="eco-note absolute right-[3%] top-[30%] text-3xl rotate-6">distance = (v × t) / 2</span>
-          <span className="eco-note absolute left-[6%] bottom-[18%] text-2xl rotate-3">P = I × V</span>
-          <span className="eco-note absolute right-[7%] bottom-[22%] text-xl -rotate-3">F = m·a</span>
-          <span className="eco-note absolute left-[44%] top-[8%] text-lg rotate-2">↳ reads distance</span>
-          {/* little sketch arrow */}
-          <svg className="eco-doodle absolute right-[18%] top-[44%]" width="90" height="60" viewBox="0 0 90 60" fill="none">
-            <path d="M5 50 C 30 10, 55 55, 82 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-            <path d="M82 12 l -12 2 M82 12 l -3 11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-          </svg>
-          {/* circled note */}
-          <svg className="eco-doodle absolute left-[16%] top-[40%]" width="120" height="70" viewBox="0 0 120 70" fill="none">
-            <ellipse cx="60" cy="35" rx="54" ry="26" stroke="currentColor" strokeWidth="2.5" strokeDasharray="2 0" transform="rotate(-6 60 35)"/>
-          </svg>
-          {/* underline squiggle */}
-          <svg className="eco-doodle absolute right-[30%] bottom-[14%]" width="110" height="16" viewBox="0 0 110 16" fill="none">
-            <path d="M2 8 Q 18 2, 34 8 T 68 8 T 104 8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-          </svg>
-          {/* more equations */}
-          <span className="eco-note absolute left-[30%] bottom-[8%] text-xl -rotate-2">ω = v / r</span>
-          <span className="eco-note absolute right-[2%] top-[58%] text-2xl rotate-6">τ = F × r</span>
-          <span className="eco-note absolute left-[2%] top-[52%] text-lg rotate-4">RPM ∝ duty%</span>
-          <span className="eco-note absolute right-[20%] top-[8%] text-lg -rotate-3">if dist &lt; 10: stop()</span>
-          {/* stacked wheels — floating hardware accent with its own note */}
           <div className="absolute right-[1%] bottom-[2%] w-40 opacity-90">
             <img src="/wheels-stacked.png" alt="A pair of EcoBot drive wheels." className="eco-float w-full object-contain drop-shadow-[0_8px_30px_rgba(0,0,0,0.5)]" style={{ animationDelay: "1.2s" }} />
-            <span className="eco-note absolute -left-16 top-4 text-lg rotate-6" style={{ opacity: 0.7 }}>C = 2πr</span>
+            <Note className="-left-16 top-4 text-lg rotate-6" style={{ opacity: 0.75 }}>C = 2πr</Note>
           </div>
         </div>
         <div className="fade-scroll relative z-10 mb-3 font-mono text-xs uppercase tracking-[0.14em] text-primary">The catalog</div>
@@ -338,6 +429,16 @@ export default function Landing() {
               <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-primary/10 blur-2xl transition-opacity duration-300 group-hover:opacity-100 opacity-40" />
               <div className="relative mb-4 flex h-40 items-center justify-center">
                 <img src={m.img} alt={m.name} className="max-h-40 w-auto object-contain drop-shadow-[0_6px_24px_rgba(20,224,122,0.2)] transition-transform duration-500 group-hover:scale-105" />
+                {/* handwritten math drawn ON the module image (desktop) */}
+                {CARD_NOTES[i] && (
+                  <div className="pointer-events-none absolute inset-0 hidden lg:block" aria-hidden="true">
+                    {CARD_NOTES[i].notes.map((n, k) => (
+                      <Note key={k} className={n.cls} style={{ opacity: 0.8 }}>{n.txt}</Note>
+                    ))}
+                    {CARD_NOTES[i].circle && <CircleDoodle className={CARD_NOTES[i].circle} w={120} h={70} />}
+                    {CARD_NOTES[i].arrow && <ArrowDoodle className={CARD_NOTES[i].arrow} />}
+                  </div>
+                )}
               </div>
               <div className="relative">
                 <div className="flex items-center gap-2">
@@ -390,6 +491,15 @@ export default function Landing() {
           {/* phones */}
           <div className="relative flex items-end justify-center gap-4 sm:gap-6">
             <div className="pointer-events-none absolute inset-0 -z-10 mx-auto h-full w-3/4 rounded-full bg-primary/15 blur-3xl" />
+            {/* handwritten math drawn around + on the phones (desktop) */}
+            <div className="pointer-events-none absolute inset-0 z-20 hidden lg:block" aria-hidden="true">
+              <Note className="left-[-4%] top-[10%] text-xl -rotate-6" style={{ opacity: 0.75 }}>bot.m1.spin(80)</Note>
+              <Note className="right-[-6%] top-[24%] text-lg rotate-3" style={{ opacity: 0.75 }}>if dist &lt; 10:</Note>
+              <Note className="left-[6%] bottom-[8%] text-base rotate-2" style={{ opacity: 0.75 }}>Δt = 1 / f</Note>
+              <Note className="right-[2%] bottom-[16%] text-xl -rotate-3" style={{ opacity: 0.75 }}>v = d / t</Note>
+              <ArrowDoodle className="left-[-2%] top-[40%]" />
+              <SquiggleDoodle className="right-[8%] bottom-[2%]" />
+            </div>
             <img
               src="/app-dashboard.png"
               alt="EcoBot dashboard on a phone — connect your Pico W, see your sketches and AI sessions."
@@ -431,6 +541,12 @@ export default function Landing() {
         <div className="zoom-in cta-box glow-pulse relative overflow-hidden rounded-md border border-primary/30 bg-card/70 px-6 py-20 text-center">
           <div className="horizon-glow pointer-events-none absolute inset-x-0 bottom-0 h-2/3 opacity-70" />
           <div className="pointer-events-none absolute right-6 top-6 text-primary/12"><Gear size={90} dir="ccw" /></div>
+          {/* handwritten math inside the CTA panel (desktop) */}
+          <div className="pointer-events-none absolute inset-0 hidden lg:block" aria-hidden="true">
+            <Note className="left-[6%] top-[14%] text-xl -rotate-6" style={{ opacity: 0.6 }}>∑F = m·a</Note>
+            <Note className="right-[10%] bottom-[18%] text-lg rotate-3" style={{ opacity: 0.6 }}>E = mc²</Note>
+            <Note className="left-[12%] bottom-[12%] text-base rotate-2" style={{ opacity: 0.6 }}>a² + b² = c²</Note>
+          </div>
           {/* Sprocket stands at the lower-left, peeking in, watching your cursor */}
           <div className="pointer-events-none absolute bottom-0 left-2 z-20 hidden sm:block md:left-8">
             <CursorSprocket size={150} />
