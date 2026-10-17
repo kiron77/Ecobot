@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { CursorSprocket, BouncingBars, Waveform } from "@/components/sprocket";
+import { BouncingBars, Waveform } from "@/components/sprocket";
 import {
   ArrowRight, Terminal,
   Radio, UploadCloud, Bug, Code2, ShoppingCart, Cpu, Wifi, Gauge,
@@ -456,7 +456,7 @@ export default function Landing() {
       </section>
 
       {/* ---------- WORKBENCH: terminal window bleeding off the right ---------- */}
-      <section id="workbench" className="relative z-10 mx-auto max-w-6xl px-5 py-24 md:py-32">
+      <section id="workbench" className="relative z-10 mx-auto max-w-6xl px-5 py-28 md:py-44">
         <SideGutter>
           <SideMark side="left"  top="top-[32%]" eq="f = 1 / T" sketch="wave"    rot={-5} />
           <SideMark side="right" top="top-[58%]" eq="P = I · V" sketch="circuit" rot={4} />
@@ -496,7 +496,7 @@ export default function Landing() {
       </section>
 
       {/* ---------- CATALOG: real modules + handwritten math ---------- */}
-      <section className="relative z-10 mx-auto max-w-6xl px-5 py-24 md:py-28">
+      <section className="relative z-10 mx-auto max-w-6xl px-5 py-28 md:py-40">
         {/* hardware accents flush against the VIEWPORT edges (full-bleed layer) */}
         <div className="pointer-events-none absolute left-1/2 top-0 z-0 h-full w-screen -translate-x-1/2 hidden overflow-hidden min-[1360px]:block" aria-hidden="true">
           {/* right edge: stacked wheels with the circle math they earn */}
@@ -555,7 +555,7 @@ export default function Landing() {
 
       {/* ---------- PIPELINE: modules designed, not yet fabbed ---------- */}
       {ROADMAP.length > 0 && (
-      <section className="relative z-10 mx-auto max-w-6xl px-5 py-24 md:py-28">
+      <section className="relative z-10 mx-auto max-w-6xl px-5 py-28 md:py-40">
         <SideGutter>
           <SideMark side="left" top="top-[36%]" eq="ƒ/2.8" sketch="echo" rot={-5} />
         </SideGutter>
@@ -591,7 +591,7 @@ export default function Landing() {
       )}
 
       {/* ---------- WHAT'S INSIDE: feature rundown ---------- */}
-      <section className="relative z-10 mx-auto max-w-6xl px-5 py-24 md:py-28">
+      <section className="relative z-10 mx-auto max-w-6xl px-5 py-28 md:py-40">
         <SideGutter>
           <SideMark side="right" top="top-[28%]" eq="λ = c / f" sketch="wave"   rot={5} />
           <SideMark side="left"  top="top-[60%]" eq="τ = F × r" sketch="torque" rot={-5} />
@@ -618,7 +618,7 @@ export default function Landing() {
       </section>
 
       {/* ---------- THE APP: iPhone mockups ---------- */}
-      <section className="relative z-10 mx-auto max-w-6xl overflow-hidden px-5 py-24 md:py-28">
+      <section className="relative z-10 mx-auto max-w-6xl overflow-hidden px-5 py-28 md:py-40">
         <div className="fade-scroll mb-3 font-mono text-xs uppercase tracking-[0.14em] text-primary">The app</div>
         <div className="fade-scroll mb-14 max-w-xl">
           <h2 className="font-display text-4xl font-bold sm:text-5xl" style={{ textWrap: "balance" }}>
@@ -674,7 +674,7 @@ export default function Landing() {
       </section>
 
       {/* ---------- CTA: cinematic, Sprocket stands to the side ---------- */}
-      <section className="relative z-10 mx-auto max-w-6xl px-5 pb-28">
+      <section className="relative z-10 mx-auto max-w-6xl px-5 pb-32 pt-10 md:pt-16">
         <SideGutter>
           <SideMark side="left"  top="top-[26%]" eq="E = mc²"  sketch="atom"  rot={-6} />
           <SideMark side="right" top="top-[52%]" eq="∑F = m·a" sketch="force" rot={5} />
@@ -682,23 +682,23 @@ export default function Landing() {
         <div className="zoom-in cta-box glow-pulse relative overflow-hidden rounded-md border border-primary/30 bg-card/70 px-6 py-20 text-center">
           <div className="horizon-glow pointer-events-none absolute inset-x-0 bottom-0 h-2/3 opacity-70" />
           <div className="pointer-events-none absolute right-6 top-6 text-primary/12"><Gear size={90} dir="ccw" /></div>
-          {/* Sprocket stands at the lower-left, peeking in, watching your cursor */}
-          <div className="pointer-events-none absolute bottom-0 left-2 z-20 hidden sm:block md:left-8">
-            <CursorSprocket size={150} />
+          {/* Sprocket stands at the lower-left */}
+          <div className="pointer-events-none absolute bottom-0 left-2 z-20 hidden w-36 sm:block md:left-8 md:w-44">
+            <img src="/sprocket.png" alt="Sprocket, the EcoBot AI tutor" className="eco-float w-full object-contain drop-shadow-[0_12px_30px_rgba(20,224,122,0.25)]" />
           </div>
-          <div className="relative sm:pl-40 md:pl-48">
+          <div className="relative sm:pl-40 md:pl-52">
             <h2 className="font-display text-4xl font-bold sm:text-6xl" style={{ textWrap: "balance" }}>
               Ready to bring it to life?
             </h2>
             <p className="mx-auto mt-4 max-w-lg text-lg text-muted-foreground">
-              Sprocket is watching. He'll walk you through your first build, one question at a time.
+              Meet Sprocket, your AI tutor. He'll guide you through your first build — one question at a time.
             </p>
             <Button size="lg" onClick={() => go("/sign-up")} className="mt-8 bg-primary text-primary-foreground hover:brightness-110">
               Start building <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
             {/* Sprocket appears above text on mobile (no side room) */}
-            <div className="mt-8 flex justify-center sm:hidden">
-              <CursorSprocket size={120} />
+            <div className="mt-10 flex justify-center sm:hidden">
+              <img src="/sprocket.png" alt="Sprocket, the EcoBot AI tutor" className="eco-float w-28 object-contain drop-shadow-[0_12px_30px_rgba(20,224,122,0.25)]" />
             </div>
           </div>
         </div>
