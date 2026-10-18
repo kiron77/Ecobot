@@ -481,17 +481,17 @@ export default function Landing() {
         </header>
 
         {/* hero content: text left, board right */}
-        <div className="relative z-10 mx-auto grid max-w-6xl grid-cols-1 items-center gap-8 px-5 pb-16 pt-6 md:grid-cols-2 md:gap-8 md:pb-28 md:pt-16">
-          {/* left: copy */}
-          <div className="eco-reveal rv-l order-2 text-center md:order-1 md:text-left">
+        <div className="relative z-10 mx-auto grid max-w-6xl grid-cols-1 items-center gap-8 px-5 pb-20 pt-8 md:grid-cols-2 md:gap-8 md:pb-28 md:pt-16">
+          {/* left: copy (also comes first on mobile) */}
+          <div className="eco-reveal rv-l order-1 text-center md:text-left">
             <div className="fade-scroll in mb-6 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-3 py-1 font-mono text-xs text-primary">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" /> Raspberry Pi Pico W · modular robotics
             </div>
-            <h1 className="fade-scroll in font-display text-[2.6rem] font-bold leading-[1.04] sm:text-6xl md:text-6xl lg:text-7xl" style={{ textWrap: "balance" }}>
+            <h1 className="fade-scroll in font-display text-[2.05rem] font-bold leading-[1.06] sm:text-6xl md:text-6xl lg:text-7xl" style={{ textWrap: "balance" }}>
               <span className="grad-type">Real robots,</span>{" "}
               <span className="text-primary text-glow">built from scratch.</span>
             </h1>
-            <p className="fade-scroll in mx-auto mt-6 max-w-xl text-lg text-muted-foreground sm:text-xl md:mx-0">
+            <p className="fade-scroll in mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-xl md:mx-0">
               A modular kit that teaches kids to build and program robots that actually move, sense, and respond to the real world.
             </p>
             <div className="fade-scroll in mt-9 flex flex-wrap justify-center gap-3 md:justify-start">
@@ -504,37 +504,20 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* right: the real board, with a soft green glow + math drawn ON it */}
-          <div className="eco-reveal rv-r relative order-1 mx-auto w-full max-w-xl md:order-2">
+          {/* right: the real board, with a soft green glow (board sits below the copy on mobile) */}
+          <div className="eco-reveal rv-r relative order-2 mx-auto w-full max-w-xl">
             <div className="pointer-events-none absolute inset-0 -z-10 scale-110 rounded-full bg-primary/20 blur-3xl" />
             <img
               src="/hardware-hero.png"
               alt="The EcoBot motherboard — a custom PCB with a Raspberry Pi Pico W, module ports, and power, powered on."
               className="w-full h-auto drop-shadow-[0_8px_40px_rgba(20,224,122,0.25)]"
             />
-            {/* annotations drawn directly over the board (desktop) */}
-            <div className="pointer-events-none absolute inset-0 hidden lg:block" aria-hidden="true">
-              <Note className="left-[6%] top-[8%] text-xl rotate-3" style={{ opacity: 0.75 }}>3 × 1.5V = 4.5V</Note>
-              <Note className="right-[8%] top-[22%] text-2xl -rotate-3" style={{ opacity: 0.75 }}>V = I · R</Note>
-              {/* circle around the Pico W (points at the real part) */}
-              <svg className="eco-doodle absolute left-[46%] top-[30%]" width="120" height="76" viewBox="0 0 130 80" fill="none" aria-hidden="true">
-                <ellipse cx="65" cy="40" rx="58" ry="32" stroke="currentColor" strokeWidth="2.5" transform="rotate(-6 65 40)" />
-              </svg>
-              <Note className="left-[30%] top-[18%] text-base rotate-2" style={{ opacity: 0.8 }}>↳ Pico W</Note>
-              {/* arrow pointing at a module port */}
-              <svg className="eco-doodle absolute right-[20%] bottom-[24%]" width="90" height="60" viewBox="0 0 90 60" fill="none" aria-hidden="true">
-                <path d="M5 50 C 30 10, 55 55, 82 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-                <path d="M82 12 l -12 2 M82 12 l -3 11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-              </svg>
-              <Note className="right-[6%] bottom-[14%] text-lg rotate-3" style={{ opacity: 0.75 }}>module port</Note>
-              <Note className="left-[8%] bottom-[16%] text-xl -rotate-2" style={{ opacity: 0.75 }}>GPIO → one wire</Note>
-            </div>
           </div>
         </div>
       </section>
 
       {/* ---------- WORKBENCH: terminal window bleeding off the right ---------- */}
-      <section id="workbench" className="relative z-10 mx-auto max-w-6xl px-5 py-16 md:py-44">
+      <section id="workbench" className="relative z-10 mx-auto max-w-6xl px-5 py-24 md:py-44">
         <SideGutter>
           <SideMark side="left"  top="top-[32%]" eq="f = 1 / T" sketch="wave"    rot={-5} />
           <SideMark side="right" top="top-[58%]" eq="P = I · V" sketch="circuit" rot={4} />
@@ -542,10 +525,10 @@ export default function Landing() {
         <div className="grid items-center gap-10 md:grid-cols-[1fr_1.15fr] md:gap-8">
           <div className="eco-reveal rv-l">
             <div className="mb-3 font-mono text-xs uppercase tracking-[0.14em] text-primary">Real code, real hardware</div>
-            <h2 className="font-display text-4xl font-bold leading-[1.05] sm:text-5xl" style={{ textWrap: "balance" }}>
+            <h2 className="font-display text-3xl font-bold leading-[1.08] sm:text-5xl" style={{ textWrap: "balance" }}>
               Your robot’s <span className="text-primary text-glow">command center</span>.
             </h2>
-            <p className="mt-5 max-w-md text-lg text-muted-foreground">
+            <p className="mt-5 max-w-md text-base text-muted-foreground sm:text-lg">
               Everything you type runs on your own board over WiFi. This is the real EcoBotOS API, preloaded on every Pico W.
             </p>
             <div className="mt-8 grid max-w-md grid-cols-3 gap-2">
@@ -574,7 +557,7 @@ export default function Landing() {
       </section>
 
       {/* ---------- CATALOG: real modules + handwritten math ---------- */}
-      <section className="relative z-10 mx-auto max-w-6xl px-5 py-16 md:py-40">
+      <section className="relative z-10 mx-auto max-w-6xl px-5 py-24 md:py-40">
         {/* hardware accents flush against the VIEWPORT edges (full-bleed layer) */}
         <div className="pointer-events-none absolute left-1/2 top-0 z-0 h-full w-screen -translate-x-1/2 hidden overflow-hidden min-[1360px]:block" aria-hidden="true">
           {/* right edge: stacked wheels with the circle math they earn */}
@@ -593,8 +576,8 @@ export default function Landing() {
         </div>
         <div className="fade-scroll relative z-10 mb-3 font-mono text-xs uppercase tracking-[0.14em] text-primary">The catalog</div>
         <div className="fade-scroll relative z-10 mb-12 max-w-xl">
-          <h2 className="font-display text-4xl font-bold sm:text-5xl" style={{ textWrap: "balance" }}>Snap on what your build needs</h2>
-          <p className="mt-3 text-lg text-muted-foreground">One module at a time. Each carries its own brain and speaks over a single wire.</p>
+          <h2 className="font-display text-3xl font-bold sm:text-5xl" style={{ textWrap: "balance" }}>Snap on what your build needs</h2>
+          <p className="mt-3 text-base text-muted-foreground sm:text-lg">One module at a time. Each carries its own brain and speaks over a single wire.</p>
         </div>
         <div className="relative z-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {MODULES.map((m, i) => (
@@ -633,14 +616,14 @@ export default function Landing() {
 
       {/* ---------- PIPELINE: modules designed, not yet fabbed ---------- */}
       {ROADMAP.length > 0 && (
-      <section className="relative z-10 mx-auto max-w-6xl px-5 py-16 md:py-40">
+      <section className="relative z-10 mx-auto max-w-6xl px-5 py-24 md:py-40">
         <SideGutter>
           <SideMark side="left" top="top-[36%]" eq="ƒ/2.8" sketch="echo" rot={-5} />
         </SideGutter>
         <div className="fade-scroll mb-3 font-mono text-xs uppercase tracking-[0.14em] text-primary">On the workbench</div>
         <div className="fade-scroll mb-12 max-w-xl">
-          <h2 className="font-display text-4xl font-bold sm:text-5xl" style={{ textWrap: "balance" }}>More modules in the pipeline</h2>
-          <p className="mt-3 text-lg text-muted-foreground">Designed in a PCB editor and ready for fabrication the moment there's funding behind them. The EcoBot ecosystem keeps growing.</p>
+          <h2 className="font-display text-3xl font-bold sm:text-5xl" style={{ textWrap: "balance" }}>More modules in the pipeline</h2>
+          <p className="mt-3 text-base text-muted-foreground sm:text-lg">Designed in a PCB editor and ready for fabrication the moment there's funding behind them. The EcoBot ecosystem keeps growing.</p>
         </div>
         <div className="eco-reveal rv-u relative z-10">
           <PipelineCarousel />
@@ -649,14 +632,14 @@ export default function Landing() {
       )}
 
       {/* ---------- WHAT'S INSIDE: feature rundown ---------- */}
-      <section className="relative z-10 mx-auto max-w-6xl px-5 py-16 md:py-40">
+      <section className="relative z-10 mx-auto max-w-6xl px-5 py-24 md:py-40">
         <SideGutter>
           <SideMark side="right" top="top-[28%]" eq="λ = c / f" sketch="wave"   rot={5} />
           <SideMark side="left"  top="top-[60%]" eq="τ = F × r" sketch="torque" rot={-5} />
         </SideGutter>
         <div className="fade-scroll mb-3 font-mono text-xs uppercase tracking-[0.14em] text-primary">What’s inside</div>
         <div className="fade-scroll mb-12 max-w-xl">
-          <h2 className="font-display text-4xl font-bold sm:text-5xl" style={{ textWrap: "balance" }}>One place for the whole build</h2>
+          <h2 className="font-display text-3xl font-bold sm:text-5xl" style={{ textWrap: "balance" }}>One place for the whole build</h2>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {FEATURES.map((f, i) => (
@@ -676,13 +659,13 @@ export default function Landing() {
       </section>
 
       {/* ---------- THE APP: iPhone mockups ---------- */}
-      <section className="relative z-10 mx-auto max-w-6xl overflow-hidden px-5 py-16 md:py-40">
+      <section className="relative z-10 mx-auto max-w-6xl overflow-hidden px-5 py-24 md:py-40">
         <div className="fade-scroll mb-3 font-mono text-xs uppercase tracking-[0.14em] text-primary">The app</div>
         <div className="fade-scroll mb-14 max-w-xl">
-          <h2 className="font-display text-4xl font-bold sm:text-5xl" style={{ textWrap: "balance" }}>
+          <h2 className="font-display text-3xl font-bold sm:text-5xl" style={{ textWrap: "balance" }}>
             Code it from <span className="text-primary text-glow">anywhere</span>.
           </h2>
-          <p className="mt-3 text-lg text-muted-foreground">
+          <p className="mt-3 text-base text-muted-foreground sm:text-lg">
             Write real MicroPython, catch your own bugs instantly, and let Sprocket explain anything. On your laptop, tablet, or phone.
           </p>
         </div>
@@ -732,7 +715,7 @@ export default function Landing() {
       </section>
 
       {/* ---------- CTA: cinematic, Sprocket stands to the side ---------- */}
-      <section className="relative z-10 mx-auto max-w-6xl px-5 pb-24 pt-8 md:pb-32 md:pt-16">
+      <section className="relative z-10 mx-auto max-w-6xl px-5 pb-28 pt-12 md:pb-32 md:pt-16">
         <SideGutter>
           <SideMark side="left"  top="top-[26%]" eq="E = mc²"  sketch="atom"  rot={-6} />
           <SideMark side="right" top="top-[52%]" eq="∑F = m·a" sketch="force" rot={5} />
@@ -745,10 +728,10 @@ export default function Landing() {
             <img src="/sprocket.png" alt="Sprocket, the EcoBot AI tutor" className="eco-float w-full object-contain drop-shadow-[0_12px_30px_rgba(20,224,122,0.25)]" />
           </div>
           <div className="relative sm:pl-40 md:pl-52">
-            <h2 className="font-display text-4xl font-bold sm:text-6xl" style={{ textWrap: "balance" }}>
+            <h2 className="font-display text-3xl font-bold sm:text-6xl" style={{ textWrap: "balance" }}>
               Ready to bring it to life?
             </h2>
-            <p className="mx-auto mt-4 max-w-lg text-lg text-muted-foreground">
+            <p className="mx-auto mt-4 max-w-lg text-base text-muted-foreground sm:text-lg">
               Meet Sprocket, your AI tutor. He'll guide you through your first build — one question at a time.
             </p>
             <Button size="lg" onClick={() => go("/sign-up")} className="mt-8 bg-primary text-primary-foreground hover:brightness-110">
