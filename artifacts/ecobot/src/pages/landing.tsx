@@ -5,27 +5,56 @@ import { BouncingBars, Waveform } from "@/components/sprocket";
 import {
   ArrowRight, Terminal,
   Radio, UploadCloud, Bug, Code2, ShoppingCart, Cpu, Wifi, Gauge,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
 
-/* ===================== scroll reveal ===================== */
-function useReveal() {
+/* ===================== scroll fade (in + out) =====================
+   Opacity and a small directional drift are driven continuously by each
+   block's position in the viewport: it eases in as it rises up from the
+   bottom, sits fully visible through the middle, and softly fades back out
+   near the top edge. Because it's position-linked (not an on/off trigger),
+   it never flashes the way a toggled reveal does. */
+function useScrollFade() {
   useEffect(() => {
-    const els = Array.from(document.querySelectorAll<HTMLElement>(".fade-scroll, .zoom-in, .eco-reveal"));
-    if (!("IntersectionObserver" in window)) { els.forEach((e) => e.classList.add("in")); return; }
-    const io = new IntersectionObserver(
-      (ents) => ents.forEach((en) => {
-        // Reveal ONCE: as soon as it enters, lock it in and stop watching it.
-        // (Toggling in/out caused violent flashing when an element sat on the
-        // viewport edge and kept re-crossing the trigger line.)
-        if (en.isIntersecting) {
-          en.target.classList.add("in");
-          io.unobserve(en.target);
-        }
-      }),
-      { threshold: 0.1, rootMargin: "0px 0px -10% 0px" },
-    );
-    els.forEach((e) => io.observe(e));
-    return () => io.disconnect();
+    // top-level animated blocks only (skip ones nested inside another)
+    const all = Array.from(document.querySelectorAll<HTMLElement>(".eco-reveal, .fade-scroll, .zoom-in"));
+    const els = all.filter((el) => !(el.parentElement && el.parentElement.closest(".eco-reveal, .fade-scroll, .zoom-in")));
+    if (!els.length) return;
+
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { els.forEach((e) => { e.style.transition = "none"; e.style.opacity = "1"; e.style.transform = "none"; }); return; }
+
+    els.forEach((e) => { e.style.transition = "none"; e.style.willChange = "opacity, transform"; });
+
+    const FADE = 0.16; // fraction of viewport over which edges fade
+    let ticking = false;
+    const update = () => {
+      ticking = false;
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      for (const el of els) {
+        const r = el.getBoundingClientRect();
+        const center = (r.top + r.height / 2) / vh;
+        let o: number;
+        if (center <= 0 || center >= 1) o = 0;
+        else if (center < FADE) o = center / FADE;            // entering past top edge
+        else if (center > 1 - FADE) o = (1 - center) / FADE;  // leaving past bottom edge
+        else o = 1;
+        o = o < 0 ? 0 : o > 1 ? 1 : o;
+        const k = 1 - o; // 0 when fully in view, 1 when gone
+        let x = 0, y = 0;
+        if (el.classList.contains("rv-l")) x = -52 * k;
+        else if (el.classList.contains("rv-r")) x = 52 * k;
+        if (el.classList.contains("rv-u")) y = 44 * k;
+        else y = 24 * k; // gentle lift for everything else
+        el.style.opacity = o.toFixed(3);
+        el.style.transform = (x || y) ? `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)` : "none";
+      }
+    };
+    const onScroll = () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); };
   }, []);
 }
 
@@ -334,10 +363,63 @@ function SideGutter({ children }: { children: React.ReactNode }) {
   );
 }
 
+/* Pipeline carousel: the roadmap modules as a swipeable deck (arrows on
+   desktop, native swipe on touch) so the list doesn't become an endless scroll. */
+function PipelineCarousel() {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const scroll = (dir: number) => {
+    const t = trackRef.current;
+    if (!t) return;
+    const card = t.querySelector<HTMLElement>("[data-card]");
+    const amt = card ? card.offsetWidth + 20 : t.clientWidth * 0.85;
+    t.scrollBy({ left: dir * amt, behavior: "smooth" });
+  };
+  return (
+    <div className="relative">
+      <button type="button" aria-label="Previous modules" onClick={() => scroll(-1)}
+        className="absolute -left-3 top-[34%] z-20 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-border bg-card/90 text-foreground shadow-lg backdrop-blur transition hover:border-primary/60 hover:text-primary md:grid">
+        <ChevronLeft className="h-5 w-5" />
+      </button>
+      <button type="button" aria-label="More modules" onClick={() => scroll(1)}
+        className="absolute -right-3 top-[34%] z-20 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-border bg-card/90 text-foreground shadow-lg backdrop-blur transition hover:border-primary/60 hover:text-primary md:grid">
+        <ChevronRight className="h-5 w-5" />
+      </button>
+
+      <div ref={trackRef} className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-5 pb-2 sm:gap-5">
+        {ROADMAP.map((m) => (
+          <div key={m.name} data-card className="w-[84%] shrink-0 snap-start sm:w-[47%] lg:w-[31.5%]">
+            <div className="group relative h-full overflow-hidden rounded-sm border border-border bg-card/60 p-5 transition-all duration-300 hover:-translate-y-2 hover:border-primary/50 hover:shadow-[0_12px_48px_-12px_rgba(20,224,122,0.4)]">
+              {/* PCB-editor viewport showing the schematic */}
+              <div className="mb-4 overflow-hidden rounded-md border border-primary/20 bg-[#f6f6f1]">
+                <div className="flex items-center gap-1.5 border-b border-black/10 bg-[#ecece4] px-3 py-2">
+                  <span className="h-2 w-2 rounded-full bg-[#ff5f57]" />
+                  <span className="h-2 w-2 rounded-full bg-[#febc2e]" />
+                  <span className="h-2 w-2 rounded-full bg-[#28c840]" />
+                  <span className="ml-2 font-mono text-[10px] text-black/50">{m.file}</span>
+                </div>
+                <img src={m.img} alt={`${m.name} schematic`} className="h-36 w-full object-contain p-2 sm:h-40" loading="lazy" />
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-primary">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />{m.status}
+              </span>
+              <h3 className="mt-2 font-display text-lg font-semibold">{m.name}</h3>
+              <p className="mt-1.5 text-sm text-muted-foreground">{m.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 text-center font-mono text-[11px] uppercase tracking-wider text-muted-foreground md:hidden">
+        swipe to explore →
+      </div>
+    </div>
+  );
+}
+
 export default function Landing() {
   const [, navigate] = useLocation();
   const go = (p: string) => navigate(p);
-  useReveal();
+  useScrollFade();
 
   return (
     <div className="relative min-h-[100dvh] overflow-x-hidden bg-background text-foreground">
@@ -359,20 +441,16 @@ export default function Landing() {
           text-shadow: 0 0 12px rgba(20,224,122,0.25);
         }
         .eco-doodle { color: hsl(148 60% 62%); opacity: 0.45; pointer-events: none; }
-        /* scroll-in movement: elements slide + fade into place once revealed */
-        .eco-reveal {
-          opacity: 0;
-          transition: opacity 0.85s cubic-bezier(0.16,1,0.3,1), transform 0.85s cubic-bezier(0.16,1,0.3,1);
-          will-change: transform, opacity;
-        }
-        .eco-reveal.in { opacity: 1 !important; transform: none !important; }
-        .rv-l { transform: translateX(-60px); }
-        .rv-r { transform: translateX(60px); }
-        .rv-u { transform: translateY(52px); }
-        .rv-z { transform: scale(0.9); }
+        /* scroll fade: opacity + drift are driven by JS (useScrollFade) from
+           each block's viewport position, so blocks fade in AND out smoothly.
+           rv-l / rv-r / rv-u are direction markers the script reads. */
+        .eco-reveal { opacity: 0; will-change: opacity, transform; }
+        /* hide scrollbar on the pipeline carousel */
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
         @media (prefers-reduced-motion: reduce) {
           .eco-float { animation: none; }
-          .eco-reveal { opacity: 1 !important; transform: none !important; transition: none; }
+          .eco-reveal { opacity: 1; }
         }
       `}</style>
 
@@ -403,7 +481,7 @@ export default function Landing() {
         </header>
 
         {/* hero content: text left, board right */}
-        <div className="relative z-10 mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-5 pb-20 pt-10 md:grid-cols-2 md:gap-8 md:pb-28 md:pt-16">
+        <div className="relative z-10 mx-auto grid max-w-6xl grid-cols-1 items-center gap-8 px-5 pb-16 pt-6 md:grid-cols-2 md:gap-8 md:pb-28 md:pt-16">
           {/* left: copy */}
           <div className="eco-reveal rv-l order-2 text-center md:order-1 md:text-left">
             <div className="fade-scroll in mb-6 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-3 py-1 font-mono text-xs text-primary">
@@ -456,7 +534,7 @@ export default function Landing() {
       </section>
 
       {/* ---------- WORKBENCH: terminal window bleeding off the right ---------- */}
-      <section id="workbench" className="relative z-10 mx-auto max-w-6xl px-5 py-28 md:py-44">
+      <section id="workbench" className="relative z-10 mx-auto max-w-6xl px-5 py-16 md:py-44">
         <SideGutter>
           <SideMark side="left"  top="top-[32%]" eq="f = 1 / T" sketch="wave"    rot={-5} />
           <SideMark side="right" top="top-[58%]" eq="P = I · V" sketch="circuit" rot={4} />
@@ -496,7 +574,7 @@ export default function Landing() {
       </section>
 
       {/* ---------- CATALOG: real modules + handwritten math ---------- */}
-      <section className="relative z-10 mx-auto max-w-6xl px-5 py-28 md:py-40">
+      <section className="relative z-10 mx-auto max-w-6xl px-5 py-16 md:py-40">
         {/* hardware accents flush against the VIEWPORT edges (full-bleed layer) */}
         <div className="pointer-events-none absolute left-1/2 top-0 z-0 h-full w-screen -translate-x-1/2 hidden overflow-hidden min-[1360px]:block" aria-hidden="true">
           {/* right edge: stacked wheels with the circle math they earn */}
@@ -555,7 +633,7 @@ export default function Landing() {
 
       {/* ---------- PIPELINE: modules designed, not yet fabbed ---------- */}
       {ROADMAP.length > 0 && (
-      <section className="relative z-10 mx-auto max-w-6xl px-5 py-28 md:py-40">
+      <section className="relative z-10 mx-auto max-w-6xl px-5 py-16 md:py-40">
         <SideGutter>
           <SideMark side="left" top="top-[36%]" eq="ƒ/2.8" sketch="echo" rot={-5} />
         </SideGutter>
@@ -564,34 +642,14 @@ export default function Landing() {
           <h2 className="font-display text-4xl font-bold sm:text-5xl" style={{ textWrap: "balance" }}>More modules in the pipeline</h2>
           <p className="mt-3 text-lg text-muted-foreground">Designed in a PCB editor and ready for fabrication the moment there's funding behind them. The EcoBot ecosystem keeps growing.</p>
         </div>
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {ROADMAP.map((m, i) => (
-            <div key={m.name} className="eco-reveal rv-u" style={{ transitionDelay: `${i * 120}ms` }}>
-              <div className="group relative h-full overflow-hidden rounded-sm border border-border bg-card/60 p-5 transition-all duration-300 hover:-translate-y-2 hover:border-primary/50 hover:shadow-[0_12px_48px_-12px_rgba(20,224,122,0.4)]">
-                {/* PCB-editor viewport showing the schematic */}
-                <div className="mb-4 overflow-hidden rounded-md border border-primary/20 bg-[#f6f6f1]">
-                  <div className="flex items-center gap-1.5 border-b border-black/10 bg-[#ecece4] px-3 py-2">
-                    <span className="h-2 w-2 rounded-full bg-[#ff5f57]" />
-                    <span className="h-2 w-2 rounded-full bg-[#febc2e]" />
-                    <span className="h-2 w-2 rounded-full bg-[#28c840]" />
-                    <span className="ml-2 font-mono text-[10px] text-black/50">{m.file}</span>
-                  </div>
-                  <img src={m.img} alt={`${m.name} schematic`} className="h-40 w-full object-contain p-2" />
-                </div>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-primary">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />{m.status}
-                </span>
-                <h3 className="mt-2 font-display text-lg font-semibold">{m.name}</h3>
-                <p className="mt-1.5 text-sm text-muted-foreground">{m.desc}</p>
-              </div>
-            </div>
-          ))}
+        <div className="eco-reveal rv-u relative z-10">
+          <PipelineCarousel />
         </div>
       </section>
       )}
 
       {/* ---------- WHAT'S INSIDE: feature rundown ---------- */}
-      <section className="relative z-10 mx-auto max-w-6xl px-5 py-28 md:py-40">
+      <section className="relative z-10 mx-auto max-w-6xl px-5 py-16 md:py-40">
         <SideGutter>
           <SideMark side="right" top="top-[28%]" eq="λ = c / f" sketch="wave"   rot={5} />
           <SideMark side="left"  top="top-[60%]" eq="τ = F × r" sketch="torque" rot={-5} />
@@ -618,7 +676,7 @@ export default function Landing() {
       </section>
 
       {/* ---------- THE APP: iPhone mockups ---------- */}
-      <section className="relative z-10 mx-auto max-w-6xl overflow-hidden px-5 py-28 md:py-40">
+      <section className="relative z-10 mx-auto max-w-6xl overflow-hidden px-5 py-16 md:py-40">
         <div className="fade-scroll mb-3 font-mono text-xs uppercase tracking-[0.14em] text-primary">The app</div>
         <div className="fade-scroll mb-14 max-w-xl">
           <h2 className="font-display text-4xl font-bold sm:text-5xl" style={{ textWrap: "balance" }}>
@@ -674,7 +732,7 @@ export default function Landing() {
       </section>
 
       {/* ---------- CTA: cinematic, Sprocket stands to the side ---------- */}
-      <section className="relative z-10 mx-auto max-w-6xl px-5 pb-32 pt-10 md:pt-16">
+      <section className="relative z-10 mx-auto max-w-6xl px-5 pb-24 pt-8 md:pb-32 md:pt-16">
         <SideGutter>
           <SideMark side="left"  top="top-[26%]" eq="E = mc²"  sketch="atom"  rot={-6} />
           <SideMark side="right" top="top-[52%]" eq="∑F = m·a" sketch="force" rot={5} />
