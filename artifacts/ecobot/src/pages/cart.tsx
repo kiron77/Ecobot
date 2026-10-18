@@ -6,8 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { ShoppingCart, Trash2, CheckCircle2, Package, ArrowRight, Cpu } from "lucide-react";
+import { ShoppingCart, Trash2, CheckCircle2, Package, ArrowRight, Cpu, Clock } from "lucide-react";
 import { useLocation } from "wouter";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 
 interface CartItem {
   userId: string;
@@ -39,7 +48,7 @@ export default function Cart() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [, setLocation] = useLocation();
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [showNotice, setShowNotice] = useState(false);
 
   const success = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("success") === "true";
 
@@ -62,30 +71,11 @@ export default function Cart() {
     onError: () => toast({ title: "Failed to remove from cart", variant: "destructive" }),
   });
 
-  const checkout = async () => {
+  // The store isn't live yet — clicking Checkout shows a clear "coming soon"
+  // notice instead of processing a purchase. The cart is left untouched.
+  const checkout = () => {
     if (!items || items.length === 0) return;
-    setIsCheckingOut(true);
-    try {
-      const r = await authFetch("/api/cart/checkout", getToken, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!r.ok) throw new Error("Checkout failed");
-      const data = await r.json() as { url?: string; success?: boolean; simulated?: boolean };
-
-      if (data.url) {
-        window.location.href = data.url;
-      } else if (data.success) {
-        qc.invalidateQueries({ queryKey: ["cart"] });
-        qc.invalidateQueries({ queryKey: ["user-modules"] });
-        toast({ title: "Modules added to your collection!" });
-        setLocation("/modules");
-      }
-    } catch {
-      toast({ title: "Checkout failed. Please try again.", variant: "destructive" });
-    } finally {
-      setIsCheckingOut(false);
-    }
+    setShowNotice(true);
   };
 
   if (success) {
@@ -140,7 +130,7 @@ export default function Cart() {
                 Browse the module catalog and add some to your cart.
               </p>
             </div>
-            <Button onClick={() => setLocation("/modules")} className="gap-2 mt-2">
+            <Button onClick={() => setLocation("/modules?tab=catalog")} className="gap-2 mt-2">
               Browse Modules
               <ArrowRight className="w-4 h-4" />
             </Button>
@@ -206,26 +196,38 @@ export default function Cart() {
                   className="w-full gap-2"
                   size="lg"
                   onClick={checkout}
-                  disabled={isCheckingOut || total === 0}
+                  disabled={total === 0}
                 >
-                  {isCheckingOut ? (
-                    <>Processing...</>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-4 h-4" />
-                      Checkout
-                    </>
-                  )}
+                  <CheckCircle2 className="w-4 h-4" />
+                  Checkout
                 </Button>
 
                 <p className="text-xs text-center text-muted-foreground">
-                  Modules will be added to your collection instantly.
+                  Modules aren’t available for purchase just yet — your cart is saved for when the store opens.
                 </p>
               </CardContent>
             </Card>
           </div>
         </div>
       )}
+
+      {/* Store-not-live notice, shown when a customer tries to check out */}
+      <AlertDialog open={showNotice} onOpenChange={setShowNotice}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <Clock className="h-6 w-6 text-primary" />
+            </div>
+            <AlertDialogTitle className="text-center">The EcoBot store is opening soon</AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              Modules aren’t available for purchase just yet, but we’ll keep your cart saved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center">
+            <AlertDialogAction className="w-full sm:w-auto">Got it</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

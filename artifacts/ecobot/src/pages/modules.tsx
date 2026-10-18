@@ -110,10 +110,9 @@ function useCatalog() {
   return useQuery<CatalogModule[]>({
     queryKey: ["modules-catalog"],
     queryFn: async () => {
-      const r = await fetch("/api/catalog-modules");
+      const r = await fetch("/api/modules/catalog");
       if (!r.ok) throw new Error("Failed to load catalog");
-      const data = await r.json();
-      return Array.isArray(data) ? (data as CatalogModule[]) : [];
+      return r.json() as Promise<CatalogModule[]>;
     },
   });
 }
@@ -420,6 +419,16 @@ export default function Modules() {
   const [addingId, setAddingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [cartAddingId, setCartAddingId] = useState<string | null>(null);
+  // Which tab is showing. Honor ?tab=catalog (e.g. the "Browse Modules" link in
+  // the cart) so you always land on Browse, regardless of where you left it.
+  const [tab, setTab] = useState<string>(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      return p.get("tab") === "catalog" || p.has("browse") ? "catalog" : "mine";
+    } catch {
+      return "mine";
+    }
+  });
 
   const { data: catalogRaw, isLoading: catalogLoading } = useCatalog();
   const catalog = Array.isArray(catalogRaw) ? catalogRaw : [];
@@ -519,21 +528,29 @@ export default function Modules() {
         </div>
       </div>
 
-      <Tabs defaultValue="mine">
-        <TabsList className="mb-8">
-          <TabsTrigger value="mine">
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="mb-6 grid h-auto w-full max-w-md grid-cols-2 gap-1 p-1">
+          <TabsTrigger
+            value="mine"
+            className="gap-2 py-2.5 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow"
+          >
+            <Cpu className="h-4 w-4" />
             My Collection
             {userModules && userModules.length > 0 && (
-              <span className="ml-2 bg-primary/20 text-primary text-xs rounded-full px-1.5 py-0.5">
+              <span className="ml-1 rounded-full bg-background/25 px-1.5 py-0.5 text-xs">
                 {userModules.length}
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="catalog">
+          <TabsTrigger
+            value="catalog"
+            className="gap-2 py-2.5 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow"
+          >
+            <ShoppingCart className="h-4 w-4" />
             Browse All
             {cartCount > 0 && (
-              <span className="ml-2 bg-amber-500/20 text-amber-600 text-xs rounded-full px-1.5 py-0.5">
-                {cartCount} in cart
+              <span className="ml-1 rounded-full bg-background/25 px-1.5 py-0.5 text-xs">
+                {cartCount}
               </span>
             )}
           </TabsTrigger>
@@ -562,7 +579,7 @@ export default function Modules() {
 
               <button
                 onClick={() => setSheetOpen(true)}
-                className="group flex flex-col items-center justify-center gap-3 rounded-sm border-2 border-dashed border-primary/30 bg-primary/[0.02] hover:bg-primary/[0.06] hover:border-primary/50 transition-all duration-200 min-h-[160px] cursor-pointer"
+                className="group flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-primary/30 bg-primary/[0.02] hover:bg-primary/[0.06] hover:border-primary/50 transition-all duration-200 min-h-[160px] cursor-pointer"
                 data-testid="button-add-module"
               >
                 <div className="w-14 h-14 rounded-full bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
@@ -577,7 +594,7 @@ export default function Modules() {
           )}
 
           {!isLoading && userModules?.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center mt-10 mb-4">
+            <p className="text-sm text-muted-foreground text-center -mt-2 mb-4">
               No modules yet. Click the card above to add your first one.
             </p>
           )}
