@@ -505,23 +505,23 @@ export default function Modules() {
   const cartCount = cartItems?.length ?? 0;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-5 animate-in fade-in duration-500">
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <div className="mb-1 font-mono text-xs uppercase tracking-[0.14em] text-primary">The catalog</div>
-          <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Module Registry</h1>
-          <p className="text-muted-foreground mt-2">Your EcoBot PCB module collection — browse to add more.</p>
+          <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.14em] text-primary sm:text-xs">The catalog</div>
+          <h1 className="font-display text-2xl font-bold tracking-tight sm:text-4xl">Module Registry</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground sm:mt-2 sm:text-base">Your EcoBot PCB module collection — browse to add more.</p>
         </div>
         <div className="flex items-center gap-2">
           {userModules && (
-            <Badge variant="outline" className="text-sm px-3 py-1.5 gap-1.5">
-              <Cpu className="w-3.5 h-3.5" />
+            <Badge variant="outline" className="gap-1.5 px-2.5 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm">
+              <Cpu className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               {userModules.length} owned
             </Badge>
           )}
           {cartCount > 0 && (
-            <Badge variant="secondary" className="text-sm px-3 py-1.5 gap-1.5">
-              <ShoppingCart className="w-3.5 h-3.5" />
+            <Badge variant="secondary" className="gap-1.5 px-2.5 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm">
+              <ShoppingCart className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               {cartCount} in cart
             </Badge>
           )}
@@ -559,13 +559,34 @@ export default function Modules() {
         {/* === My Collection Tab === */}
         <TabsContent value="mine">
           {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 sm:gap-4">
               {[...Array(3)].map((_, i) => (
                 <Card key={i}><CardHeader><Skeleton className="h-20 w-full" /></CardHeader></Card>
               ))}
             </div>
+          ) : userModules?.length === 0 ? (
+            /* empty state — add card centered, helper text clearly below it,
+               sitting slightly above the middle of the screen */
+            <div className="flex min-h-[52vh] flex-col items-center justify-center pb-[8vh]">
+              <button
+                onClick={() => setSheetOpen(true)}
+                className="group flex min-h-[150px] w-full max-w-sm cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-primary/30 bg-primary/[0.02] p-6 transition-all duration-200 hover:border-primary/50 hover:bg-primary/[0.06]"
+                data-testid="button-add-module"
+              >
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 transition-colors group-hover:bg-primary/20">
+                  <Plus className="h-7 w-7 text-primary" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-primary">Add a module</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Browse the full catalog</p>
+                </div>
+              </button>
+              <p className="mt-5 text-center text-sm text-muted-foreground">
+                No modules yet — tap the card above to add your first one.
+              </p>
+            </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 sm:gap-4">
               {(userModules ?? [])
                 .filter((m) => m.catalogInfo)
                 .map((m) => (
@@ -579,37 +600,31 @@ export default function Modules() {
 
               <button
                 onClick={() => setSheetOpen(true)}
-                className="group flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-primary/30 bg-primary/[0.02] hover:bg-primary/[0.06] hover:border-primary/50 transition-all duration-200 min-h-[160px] cursor-pointer"
+                className="group flex min-h-[160px] cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-primary/30 bg-primary/[0.02] transition-all duration-200 hover:border-primary/50 hover:bg-primary/[0.06]"
                 data-testid="button-add-module"
               >
-                <div className="w-14 h-14 rounded-full bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
-                  <Plus className="w-7 h-7 text-primary" />
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 transition-colors group-hover:bg-primary/20">
+                  <Plus className="h-7 w-7 text-primary" />
                 </div>
                 <div className="text-center">
                   <p className="text-sm font-semibold text-primary">Add a module</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Browse the full catalog</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Browse the full catalog</p>
                 </div>
               </button>
             </div>
-          )}
-
-          {!isLoading && userModules?.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center -mt-2 mb-4">
-              No modules yet. Click the card above to add your first one.
-            </p>
           )}
         </TabsContent>
 
         {/* === Browse All Tab === */}
         <TabsContent value="catalog">
           {catalogLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 sm:gap-4">
               {[...Array(6)].map((_, i) => (
                 <Card key={i}><CardHeader><Skeleton className="h-20 w-full" /></CardHeader></Card>
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 sm:gap-4">
               {(catalog ?? []).map((mod) => (
                 <BrowseCatalogCard
                   key={mod.id}
